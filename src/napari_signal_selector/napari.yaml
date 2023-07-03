@@ -1,0 +1,41 @@
+name: napari-signal-selector
+display_name: Napari Signal Selector
+contributions:
+  commands:
+    - id: napari-signal-selector.write_multiple
+      python_name: napari_signal_selector._writer:write_multiple
+      title: Save multi-layer data with Napari Signal Selector
+    - id: napari-signal-selector.write_single_image
+      python_name: napari_signal_selector._writer:write_single_image
+      title: Save image data with Napari Signal Selector
+    - id: napari-signal-selector.make_sample_data
+      python_name: napari_signal_selector._sample_data:make_sample_data
+      title: Load sample data from Napari Signal Selector
+    - id: napari-signal-selector.make_qwidget
+      python_name: napari_signal_selector._widget:ExampleQWidget
+      title: Make example QWidget
+    - id: napari-signal-selector.make_magic_widget
+      python_name: napari_signal_selector._widget:example_magic_widget
+      title: Make example magic widget
+    - id: napari-signal-selector.make_func_widget
+      python_name: napari_signal_selector._widget:example_function_widget
+      title: Make example function widget
+  writers:
+    - command: napari-signal-selector.write_multiple
+      layer_types: ['image*','labels*']
+      filename_extensions: []
+    - command: napari-signal-selector.write_single_image
+      layer_types: ['image']
+      filename_extensions: ['.npy']
+  sample_data:
+    - command: napari-signal-selector.make_sample_data
+      display_name: Napari Signal Selector
+      key: unique_id.1
+  widgets:
+    - command: napari-signal-selector.make_qwidget
+      display_name: Example QWidget
+    - command: napari-signal-selector.make_magic_widget
+      display_name: Example Magic Widget
+    - command: napari-signal-selector.make_func_widget
+      autogenerate: true
+      display_name: Example Function Widget
