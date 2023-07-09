@@ -9,7 +9,8 @@ from matplotlib.lines import Line2D
 from napari_matplotlib.line import FeaturesLineWidget
 from napari_matplotlib.util import Interval
 
-from .utilities import get_nice_colormap
+# from .utilities import get_nice_colormap
+import colorcet as cc
 
 __all__ = ["InteractiveFeaturesLineWidget"]
 
@@ -57,8 +58,10 @@ class InteractiveLine2D(Line2D):
         if value > 0:
             self.set_linestyle('-')
             self.set_marker('.')
-            colors = get_nice_colormap()
-            annotation_color = colors[value]
+            # colors = get_nice_colormap()
+            cmap = cc.glasbey_category10
+            cmap.insert(0, [0, 0, 0, 0])
+            annotation_color = cmap[value]
             self.set_markerfacecolor(annotation_color)
             self.set_markeredgecolor(annotation_color)
         elif value == 0:
@@ -75,7 +78,9 @@ class InteractiveLine2D(Line2D):
         self._categorical_color = value
         if value is not None:
             # Get custom colormap
-            cmap = get_nice_colormap()
+            # cmap = get_nice_colormap()
+            cmap = cc.glasbey_category10
+            cmap.insert(0, [0, 0, 0, 0])
             color = cmap[value]
             self.set_color(color)
         else:
