@@ -25,6 +25,8 @@ class InteractiveLine2D(Line2D):
     Line2D : matplotlib.lines.Line2D
         Matplotlib Line2D object.
     """
+    cmap = cc.glasbey_category10
+    cmap.insert(0, [0, 0, 0, 0])
 
     def __init__(self, *args, label_from_napari_layer, color_from_napari_layer,
                  selected=False, annotation=0, categorical_color=None, **kwargs, ):
@@ -58,10 +60,7 @@ class InteractiveLine2D(Line2D):
         if value > 0:
             self.set_linestyle('-')
             self.set_marker('.')
-            # colors = get_nice_colormap()
-            cmap = cc.glasbey_category10
-            cmap.insert(0, [0, 0, 0, 0])
-            annotation_color = cmap[value]
+            annotation_color = self.cmap[value]
             self.set_markerfacecolor(annotation_color)
             self.set_markeredgecolor(annotation_color)
         elif value == 0:
@@ -77,11 +76,7 @@ class InteractiveLine2D(Line2D):
     def categorical_color(self, value):
         self._categorical_color = value
         if value is not None:
-            # Get custom colormap
-            # cmap = get_nice_colormap()
-            cmap = cc.glasbey_category10
-            cmap.insert(0, [0, 0, 0, 0])
-            color = cmap[value]
+            color = self.cmap[value]
             self.set_color(color)
         else:
             # Restore original color
