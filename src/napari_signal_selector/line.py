@@ -8,6 +8,10 @@ from qtpy.QtWidgets import QWidget
 from matplotlib.lines import Line2D
 from napari_matplotlib.line import FeaturesLineWidget
 from napari_matplotlib.util import Interval
+from qtpy.QtWidgets import QSpinBox, QLabel
+
+from qtpy.QtWidgets import QHBoxLayout
+from qtpy.QtGui import QColor, QPainter
 
 # from .utilities import get_nice_colormap
 import colorcet as cc
@@ -84,6 +88,57 @@ class InteractiveLine2D(Line2D):
         self.figure.canvas.draw_idle()
 
 
+class QtColorBox(QWidget):
+    """A widget that shows a square with the current signal class color.
+
+    Parameters
+    ----------
+    layer : napari.layers.Layer
+        An instance of a napari layer.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+
+        # self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+
+        self._height = 24
+        self.setFixedWidth(self._height)
+        self.setFixedHeight(self._height)
+        self.setToolTip(('Selected signal class color'))
+
+        self.color = None
+
+    def paintEvent(self, event):
+        """Paint the colorbox.  If no color, display a checkerboard pattern.
+
+        Parameters
+        ----------
+        event : qtpy.QtCore.QEvent
+            Event from the Qt context.
+        """
+        painter = QPainter(self)
+        # if self.layer._selected_color is None:
+        self.color = None
+        for i in range(self._height // 4):
+            for j in range(self._height // 4):
+                if (i % 2 == 0 and j % 2 == 0) or (
+                    i % 2 == 1 and j % 2 == 1
+                ):
+                    painter.setPen(QColor(230, 230, 230))
+                    painter.setBrush(QColor(230, 230, 230))
+                else:
+                    painter.setPen(QColor(25, 25, 25))
+                    painter.setBrush(QColor(25, 25, 25))
+                painter.drawRect(i * 4, j * 4, 5, 5)
+        # else:
+        #     color = np.round(255 * self.layer._selected_color).astype(int)
+        #     painter.setPen(QColor(*list(color)))
+        #     painter.setBrush(QColor(*list(color)))
+        #     painter.drawRect(0, 0, self._height, self._height)
+        #     self.color = tuple(color)
+
+
 # Update class below
 class InteractiveFeaturesLineWidget(FeaturesLineWidget):
     n_layers_input = Interval(1, 1)
@@ -100,6 +155,30 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         parent: Optional[QWidget] = None,
     ):
         super().__init__(napari_viewer, parent=parent)
+
+        # Add a label and a spinbox to a HBox widget
+        label = QLabel('Signal class:')
+
+        self.colorBox = QtColorBox()
+
+        signal_class_sb = QSpinBox()
+        self.signal_class_SpinBox = signal_class_sb
+        signal_class_sb.setToolTip(('signal class number to annotate'))
+        # signal_class_sb.valueChanged.connect(self.change_signal_class)
+        signal_class_sb.setMinimum(0)
+        # TODO: set range, not only minimum value
+        signal_class_sb.setSingleStep(1)
+        # ndim_sb.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        color_layout = QHBoxLayout()
+        color_layout.addWidget(self.colorBox)
+        color_layout.addWidget(self.signal_class_SpinBox)
+
+        signal_selection_box = QHBoxLayout()
+        signal_selection_box.addWidget(label)
+        signal_selection_box.addLayout(color_layout)
+        self.layout().insertLayout(0, signal_selection_box)
+
         # Create pick event connection id (used by line selector)
         self.pick_event_connection_id = None
         # Create mouse click event connection id (used to clear selections)
