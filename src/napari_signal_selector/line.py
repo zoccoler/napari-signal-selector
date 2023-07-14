@@ -188,9 +188,9 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self.layout().insertLayout(0, signal_selection_box)
 
         # Add span selection button to toolbar
-        image_file_path = Path(ICON_ROOT / "Select.png").__str__()
+        image_file_path = Path(ICON_ROOT / "Add_signal_annotation.png").__str__()
         self.toolbar._add_new_button(
-            'Select', "Add specified signal class to selected signal. To remove class, add class '0'", image_file_path, self.add_annotation, False)
+            'Add_signal_annotation', "Add specified signal class to selected signal. To remove class, add class '0'", image_file_path, self.add_annotation, False)
 
         # Create pick event connection id (used by line selector)
         self.pick_event_connection_id = None
