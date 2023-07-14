@@ -4,6 +4,7 @@ import matplotlib.colors as mcolor
 import napari
 import numpy as np
 import numpy.typing as npt
+from pathlib import Path
 from qtpy.QtWidgets import QWidget
 from matplotlib.lines import Line2D
 from napari_matplotlib.line import FeaturesLineWidget
@@ -17,6 +18,15 @@ from qtpy.QtGui import QColor, QPainter
 import colorcet as cc
 
 __all__ = ["InteractiveFeaturesLineWidget"]
+ICON_ROOT = Path(__file__).parent / "icons"
+
+
+def get_glasbey_category10_with_transparent_background():
+    import colorcet as cc
+    cmap = cc.glasbey_category10
+    if cmap[0] != [0, 0, 0, 0]:
+        cmap.insert(0, [0, 0, 0, 0])
+    return cmap
 
 
 class InteractiveLine2D(Line2D):
@@ -29,8 +39,7 @@ class InteractiveLine2D(Line2D):
     Line2D : matplotlib.lines.Line2D
         Matplotlib Line2D object.
     """
-    cmap = cc.glasbey_category10
-    cmap.insert(0, [0, 0, 0, 0])
+    cmap = get_glasbey_category10_with_transparent_background()
 
     def __init__(self, *args, label_from_napari_layer, color_from_napari_layer,
                  selected=False, annotation=0, categorical_color=None, **kwargs, ):
@@ -90,16 +99,12 @@ class InteractiveLine2D(Line2D):
 
 class QtColorBox(QWidget):
     """A widget that shows a square with the current signal class color.
-
-    Parameters
-    ----------
-    layer : napari.layers.Layer
-        An instance of a napari layer.
     """
+    cmap = get_glasbey_category10_with_transparent_background()
 
     def __init__(self) -> None:
         super().__init__()
-
+        # TODO: Check why this may be necessary
         # self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
 
         self._height = 24
@@ -118,25 +123,27 @@ class QtColorBox(QWidget):
             Event from the Qt context.
         """
         painter = QPainter(self)
-        # if self.layer._selected_color is None:
-        self.color = None
-        for i in range(self._height // 4):
-            for j in range(self._height // 4):
-                if (i % 2 == 0 and j % 2 == 0) or (
-                    i % 2 == 1 and j % 2 == 1
-                ):
-                    painter.setPen(QColor(230, 230, 230))
-                    painter.setBrush(QColor(230, 230, 230))
-                else:
-                    painter.setPen(QColor(25, 25, 25))
-                    painter.setBrush(QColor(25, 25, 25))
-                painter.drawRect(i * 4, j * 4, 5, 5)
-        # else:
-        #     color = np.round(255 * self.layer._selected_color).astype(int)
-        #     painter.setPen(QColor(*list(color)))
-        #     painter.setBrush(QColor(*list(color)))
-        #     painter.drawRect(0, 0, self._height, self._height)
-        #     self.color = tuple(color)
+        signal_class = self.parent()._signal_class
+        print(self.parent()._signal_class)
+        if signal_class == 0:
+            self.color = None
+            for i in range(self._height // 4):
+                for j in range(self._height // 4):
+                    if (i % 2 == 0 and j % 2 == 0) or (
+                        i % 2 == 1 and j % 2 == 1
+                    ):
+                        painter.setPen(QColor(230, 230, 230))
+                        painter.setBrush(QColor(230, 230, 230))
+                    else:
+                        painter.setPen(QColor(25, 25, 25))
+                        painter.setBrush(QColor(25, 25, 25))
+                    painter.drawRect(i * 4, j * 4, 5, 5)
+        else:
+            color = np.round(255 * np.asarray(self.cmap[signal_class])).astype(int)
+            painter.setPen(QColor(*list(color)))
+            painter.setBrush(QColor(*list(color)))
+            painter.drawRect(0, 0, self._height, self._height)
+            self.color = tuple(color)
 
 
 # Update class below
@@ -156,19 +163,20 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
     ):
         super().__init__(napari_viewer, parent=parent)
 
-        # Add a label and a spinbox to a HBox widget
+        # Add a label and a spinbox with a color widget to a HBox widget
         label = QLabel('Signal class:')
-
         self.colorBox = QtColorBox()
+        self._signal_class = 0
 
         signal_class_sb = QSpinBox()
         self.signal_class_SpinBox = signal_class_sb
-        signal_class_sb.setToolTip(('signal class number to annotate'))
-        # signal_class_sb.valueChanged.connect(self.change_signal_class)
-        signal_class_sb.setMinimum(0)
+        self.signal_class_SpinBox.setToolTip(('signal class number to annotate'))
+
+        self.signal_class_SpinBox.setMinimum(0)
         # TODO: set range, not only minimum value
-        signal_class_sb.setSingleStep(1)
-        # ndim_sb.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.signal_class_SpinBox.setSingleStep(1)
+
+        self.signal_class_SpinBox.valueChanged.connect(self._change_signal_class)
 
         color_layout = QHBoxLayout()
         color_layout.addWidget(self.colorBox)
@@ -179,6 +187,11 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         signal_selection_box.addLayout(color_layout)
         self.layout().insertLayout(0, signal_selection_box)
 
+        # Add span selection button to toolbar
+        image_file_path = Path(ICON_ROOT / "Select.png").__str__()
+        self.toolbar._add_new_button(
+            'Select', "Add specified signal class to selected signal. To remove class, add class '0'", image_file_path, self.add_annotation, False)
+
         # Create pick event connection id (used by line selector)
         self.pick_event_connection_id = None
         # Create mouse click event connection id (used to clear selections)
@@ -187,7 +200,16 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self._enable_line_selector(True)
         # Enable mouse clicks
         self._enable_mouse_clicks(True)
-        # TODO: Add a spinbox similar to 'label' in labels layer to display annotation and category color
+
+    # Callback function from toolbar span selection toggle button
+    def add_annotation(self):
+        self.toolbar._update_buttons_checked()
+        if len(self._selected_lines) > 0:
+            self._add_selected_lines_to_features_as_new_category()
+
+    def _change_signal_class(self, value):
+        self._signal_class = value
+        self.colorBox.update()
 
     def _enable_line_selector(self, active=False):
         """
@@ -234,9 +256,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self._selected_lines = []
 
         # Clear keyboard event connection
-        self.viewer.bind_key('s', None, overwrite=True)
         self.viewer.bind_key('a', None, overwrite=True)
-        self.viewer.bind_key('d', None, overwrite=True)
 
         self.canvas.figure.canvas.draw_idle()
 
@@ -261,43 +281,17 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         # Enable keyboard keys if lines selected
         if len(self._selected_lines) > 0:
             # Enable some keyboard keys if lines are selected
-            self.viewer.bind_key('s', self._store_selected_lines_to_features_as_same_category, overwrite=True)
             self.viewer.bind_key('a', self._add_selected_lines_to_features_as_new_category, overwrite=True)
-            self.viewer.bind_key('d', self._delete_selected_lines_from_features, overwrite=True)
 
         self.canvas.figure.canvas.draw_idle()
 
-    def _add_selected_lines_to_features_as_new_category(self, viewer):
+    def _add_selected_lines_to_features_as_new_category(self, viewer=None):
         if 'Annotations' not in self.layers[0].features.keys():
             self.layers[0].features['Annotations'] = 0
-        max_annotations = np.amax(self.layers[0].features['Annotations'])
         for line in self._selected_lines:
             self.layers[0].features.loc[
-                self.layers[0].features['label'] == line.label_from_napari_layer, 'Annotations'] = max_annotations + 1
-            line.annotation = max_annotations + 1
-        self._clear_selections()
-
-    def _store_selected_lines_to_features_as_same_category(self, viewer):
-        if 'Annotations' not in self.layers[0].features.keys():
-            self.layers[0].features['Annotations'] = 0
-        max_annotations = np.amax(self.layers[0].features['Annotations'])
-        for line in self._selected_lines:
-            if max_annotations == 0:
-                annotation_value = 1
-            else:
-                annotation_value = max_annotations
-            self.layers[0].features.loc[self.layers[0].features['label']
-                                        == line.label_from_napari_layer, 'Annotations'] = annotation_value
-            line.annotation = annotation_value
-        self._clear_selections()
-
-    def _delete_selected_lines_from_features(self, viewer):
-        if 'Annotations' not in self.layers[0].features.keys():
-            self.layers[0].features['Annotations'] = 0
-        for line in self._selected_lines:
-            self.layers[0].features.loc[self.layers[0].features['label']
-                                        == line.label_from_napari_layer, 'Annotations'] = 0
-            line.annotation = 0
+                self.layers[0].features['label'] == line.label_from_napari_layer, 'Annotations'] = self._signal_class
+            line.annotation = self._signal_class
         self._clear_selections()
 
     def update_plot_annotations_with_column(self, column_name):
