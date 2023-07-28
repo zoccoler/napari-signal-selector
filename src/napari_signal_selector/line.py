@@ -227,6 +227,9 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self.toolbar._add_new_button(
             'delete_annotation', "Delete selected lines class annotation", delete_annotation_icon_file_path, self.remove_annotation, False)
 
+        self.layers[0].events.show_selected_label.connect(self._show_selected_label)
+        self.layers[0].events.selected_label.connect(self._show_selected_label)
+
         # Create pick event connection id (used by line selector)
         self.pick_event_connection_id = None
         # Create mouse click event connection id (used to clear selections)
@@ -247,6 +250,16 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self.span_selector.active = False
         # Always enable mouse clicks to clear selections (right button)
         self._enable_mouse_clicks(True)
+
+    def _show_selected_label(self, event: napari.utils.events.Event) -> None:
+        """Redraw plot with selected label.
+
+        Parameters
+        ----------
+        event : napari.utils.events.Event
+            napari event.
+        """
+        self._draw()
 
     def add_annotation(self):
         """Add selected lines to current signal class.
