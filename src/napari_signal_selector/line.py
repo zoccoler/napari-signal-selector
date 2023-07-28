@@ -135,7 +135,6 @@ class QtColorBox(QWidget):
         """
         painter = QPainter(self)
         signal_class = self.parent()._signal_class
-        print(self.parent()._signal_class)
         if signal_class == 0:
             self.color = None
             for i in range(self._height // 4):
