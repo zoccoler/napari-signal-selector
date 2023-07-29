@@ -6,6 +6,7 @@ from pathlib import Path
 from matplotlib.lines import Line2D
 from napari_matplotlib.line import FeaturesLineWidget
 from napari_matplotlib.util import Interval
+from napari_signal_selector.utilities import get_custom_cat10based_cmap_list
 from matplotlib.widgets import SpanSelector
 from qtpy.QtWidgets import QWidget, QSpinBox, QLabel, QHBoxLayout
 from qtpy.QtCore import Qt
@@ -13,14 +14,6 @@ from qtpy.QtGui import QGuiApplication, QColor, QPainter
 
 __all__ = ["InteractiveFeaturesLineWidget"]
 ICON_ROOT = Path(__file__).parent / "icons"
-
-
-def get_glasbey_category10_with_transparent_background():
-    import colorcet as cc
-    cmap = cc.glasbey_category10
-    if cmap[0] != [0, 0, 0, 0]:
-        cmap.insert(0, [0, 0, 0, 0])
-    return cmap
 
 
 class InteractiveLine2D(Line2D):
@@ -33,7 +26,7 @@ class InteractiveLine2D(Line2D):
     Line2D : matplotlib.lines.Line2D
         Matplotlib Line2D object.
     """
-    cmap = get_glasbey_category10_with_transparent_background()
+    cmap = get_custom_cat10based_cmap_list()
     _default_alpha = 0.7
     _default_marker_size = 4
 
@@ -111,7 +104,7 @@ class InteractiveLine2D(Line2D):
 class QtColorBox(QWidget):
     """A widget that shows a square with the current signal class color.
     """
-    cmap = get_glasbey_category10_with_transparent_background()
+    cmap = get_custom_cat10based_cmap_list()
 
     def __init__(self) -> None:
         super().__init__()
