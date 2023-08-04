@@ -178,7 +178,8 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         parent: Optional[QWidget] = None,
     ):
         super().__init__(napari_viewer, parent=parent)
-
+        # Set object name
+        self.setObjectName('InteractiveFeaturesLineWidget')
         # Create signal class Label text
         label = QLabel('Signal class:')
 
@@ -220,9 +221,6 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self.toolbar._add_new_button(
             'delete_annotation', "Delete selected lines class annotation", delete_annotation_icon_file_path, self.remove_annotation, False)
 
-        self.layers[0].events.show_selected_label.connect(self._show_selected_label)
-        self.layers[0].events.selected_label.connect(self._show_selected_label)
-
         # Create pick event connection id (used by line selector)
         self.pick_event_connection_id = None
         # Create mouse click event connection id (used to clear selections)
@@ -243,6 +241,15 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self.span_selector.active = False
         # Always enable mouse clicks to clear selections (right button)
         self._enable_mouse_clicks(True)
+
+    def on_update_layers(self) -> None:
+        """
+        Called when the layer selection changes by ``self.update_layers()``.
+        """
+        super().on_update_layers()
+        if len(self.layers) > 0:
+            self.layers[0].events.show_selected_label.connect(self._show_selected_label)
+            self.layers[0].events.selected_label.connect(self._show_selected_label)
 
     def _show_selected_label(self, event: napari.utils.events.Event) -> None:
         """Redraw plot with selected label.
@@ -463,7 +470,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             self.layers[0].features['Annotations'] = 0
         for line in self._selected_lines:
             self.layers[0].features.loc[
-                self.layers[0].features['label'] == line.label_from_napari_layer, 'Annotations'] = self._signal_class
+                self.layers[0].features[self.object_id_axis_key] == line.label_from_napari_layer, 'Annotations'] = self._signal_class
             line.annotation = self._signal_class
 
     def _remove_selected_lines_from_features(self, viewer=None):
@@ -478,10 +485,10 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             self.layers[0].features['Annotations'] = 0
         for line in self._selected_lines:
             self.layers[0].features.loc[
-                self.layers[0].features['label'] == line.label_from_napari_layer, 'Annotations'] = 0
+                self.layers[0].features[self.object_id_axis_key] == line.label_from_napari_layer, 'Annotations'] = 0
             line.annotation = 0
 
-    def update_line_layout_from_column(self, column_name, markers=False):
+    def update_line_layout_from_column(self, column_name='Annotations', markers=False):
         """Update line layout (color or annotation) from a column in the features table.
 
         Markers are used to display annotations, while line colors are used to display categorical values.
@@ -495,12 +502,22 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         """
         for line in self._lines:
             label = line.label_from_napari_layer
-            feature_table = self.viewer.layers[0].features
+            feature_table = self.layers[0].features
             # table = self.viewer.layers.selection.active.features
-            # Get the annotation for the current label from table column
-            value = feature_table[feature_table['label'] == label][column_name].values[0]
+            # Get the annotation for the current object_id from table column
+            values = feature_table[feature_table[self.object_id_axis_key] == label][column_name].values
+            # If all values are the same, use that value
+            if np.all(values == values[0]):
+                value = values[0]
+            else:
+                # If not, get the most frequent non-zero annotation
+                unique_values, counts = np.unique(values, return_counts=True)
+                # Get the most frequent annotation
+                value = values[np.argmax(counts[1:])]  # exclude 0
+                indices = np.where(values == value)[0]
             if markers:
                 line.annotation = value
+                line.span_indices = indices
             else:
                 line.categorical_color = value
 
@@ -536,10 +553,10 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         """
         feature_table = self.layers[0].features
 
-        # Sort features by 'label' and x_axis_key
-        feature_table = feature_table.sort_values(by=[self.label_axis_key, self.x_axis_key])
-        # Get data for each label
-        grouped = feature_table.groupby(self.label_axis_key)
+        # Sort features by object_id and x_axis_key
+        feature_table = feature_table.sort_values(by=[self.object_id_axis_key, self.x_axis_key])
+        # Get data for each object_id (usually label)
+        grouped = feature_table.groupby(self.object_id_axis_key)
         x = np.array([sub_df[self.x_axis_key].values for label, sub_df in grouped]).T.squeeze()
         y = np.array([sub_df[self.y_axis_key].values for label, sub_df in grouped]).T.squeeze()
 
@@ -552,7 +569,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
 
     def draw(self) -> None:
         """
-        Plot lines for two features from the currently selected layer, grouped by labels.
+        Plot lines for two features from the currently selected layer, grouped by object_id.
         """
         if self._ready_to_plot():
             # gets the data and then plots the data
