@@ -248,8 +248,9 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         """
         super().on_update_layers()
         if len(self.layers) > 0:
-            self.layers[0].events.show_selected_label.connect(self._show_selected_label)
-            self.layers[0].events.selected_label.connect(self._show_selected_label)
+            if 'show_selected_label' in self.layers[0].events.emitters.keys():
+                self.layers[0].events.show_selected_label.connect(self._show_selected_label)
+                self.layers[0].events.selected_label.connect(self._show_selected_label)
 
     def _show_selected_label(self, event: napari.utils.events.Event) -> None:
         """Redraw plot with selected label.
