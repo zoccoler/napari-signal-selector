@@ -5,12 +5,19 @@ import numpy.typing as npt
 from pathlib import Path
 from matplotlib.lines import Line2D
 from napari_matplotlib.line import FeaturesLineWidget
+from napari_matplotlib.base import NapariNavigationToolbar
 from napari_matplotlib.util import Interval
 from napari_signal_selector.utilities import get_custom_cat10based_cmap_list
 from matplotlib.widgets import SpanSelector
 from qtpy.QtWidgets import QWidget, QSpinBox, QLabel, QHBoxLayout
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QGuiApplication, QColor, QPainter
+
+from matplotlib.backends.qt_compat import  _enum, _to_int
+from qtpy.QtWidgets import QLabel, QWidget, QSizePolicy
+from qtpy.QtGui import QIcon
+import os
+from napari_matplotlib.util import Interval, from_napari_css_get_size_of
 
 __all__ = ["InteractiveFeaturesLineWidget"]
 ICON_ROOT = Path(__file__).parent / "icons"
@@ -149,6 +156,119 @@ class QtColorBox(QWidget):
             self.color = tuple(color)
 
 
+class CustomNapariNavigationToolbar(NapariNavigationToolbar):
+    """Custom Toolbar style for Napari."""
+
+    def __init__(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        super().__init__(*args, **kwargs)
+        self.setIconSize(
+            from_napari_css_get_size_of(
+                "QtViewerPushButton", fallback=(28, 28)
+            )
+        )
+        self.tb_canvas = self.canvas
+        self.tb_parent = kwargs['parent']
+        self.tb_coordinates = self.coordinates
+        self.extra_button_paths = []
+
+    def _add_new_button(self, text, tooltip_text, icon_image_file_path, callback, checkable=False, separator=True):
+        """Add a new buttons to the toolbar.
+
+        Parameters
+        ----------
+        text : str
+            the text representing the name of the button
+        tooltip_text : str
+            the tooltip text exhibited when cursor hovers over button
+        icon_image_file_path : str
+            path to the "png" file containing the button image
+        callback : function
+            function to be called when button is clicked
+        separator: bool
+            Whether to add a separator before new button
+        checkable: bool
+            flag that indicates if button should or not be chackable
+        """        
+        self.extra_button_paths.append(icon_image_file_path)
+        self.toolitems.append((text, tooltip_text, icon_image_file_path, callback))
+        # Get last widget (A QLabel spacer)
+        n_widgets = self.layout().count() # get number of widgets
+        myWidget = self.layout().itemAt(n_widgets-1).widget() # get last widget
+        # Remove last widget (the spacer)
+        self.layout().removeWidget(myWidget)
+        myWidget.deleteLater()
+        if separator:
+            # Add a separator
+            self.addSeparator()
+        # Add custom button (addAction from QToolBar)
+        # https://doc.qt.io/qtforpython-5/PySide2/QtWidgets/QToolBar.html#PySide2.QtWidgets.PySide2.QtWidgets.QToolBar.addAction
+        a = self.addAction(QIcon(icon_image_file_path), text, callback)
+        self._actions[text] = a
+        if checkable:
+            a.setCheckable(True)
+        if tooltip_text is not None:
+            a.setToolTip(tooltip_text)
+       
+        ## Rebuild spacer at the very end of toolbar (re-create 'locLabel' created by __init__ from NavigationToolbar2QT)
+        # https://github.com/matplotlib/matplotlib/blob/85d7bb370186f2fa86df6ecc3d5cd064eb7f0b45/lib/matplotlib/backends/backend_qt.py#L631
+        if self.tb_coordinates:
+            self.locLabel = QLabel("", self)
+            self.locLabel.setAlignment(Qt.AlignmentFlag(
+                _to_int(_enum("QtCore.Qt.AlignmentFlag").AlignRight) |
+                _to_int(_enum("QtCore.Qt.AlignmentFlag").AlignVCenter)))
+            self.locLabel.setSizePolicy(QSizePolicy(
+                _enum("QtWidgets.QSizePolicy.Policy").Expanding,
+                _enum("QtWidgets.QSizePolicy.Policy").Ignored,
+            ))
+            labelAction = self.addWidget(self.locLabel)
+            labelAction.setVisible(True)      
+
+    def _update_buttons_checked(self) -> None:
+        """Update toggle tool icons when selected/unselected."""
+        super()._update_buttons_checked()
+        icon_dir = self.parentWidget()._get_path_to_icon()
+
+        # changes pan/zoom icons depending on state (checked or not)
+        if "pan" in self._actions:
+            if self._actions["pan"].isChecked():
+                self._actions["pan"].setIcon(
+                    QIcon(os.path.join(icon_dir, "Pan_checked.png"))
+                )
+            else:
+                self._actions["pan"].setIcon(
+                    QIcon(os.path.join(icon_dir, "Pan.png"))
+                )
+        if "zoom" in self._actions:
+            if self._actions["zoom"].isChecked():
+                self._actions["zoom"].setIcon(
+                    QIcon(os.path.join(icon_dir, "Zoom_checked.png"))
+                )
+            else:
+                self._actions["zoom"].setIcon(
+                    QIcon(os.path.join(icon_dir, "Zoom.png"))
+                )
+        # If new button added and checkable, update state and icon
+        if len(self.extra_button_paths)>0:
+            for p in self.extra_button_paths:
+                path = Path(p)
+                extra_button_name = path.stem
+                extra_button_dir = path.parent
+                if extra_button_name in self._actions:
+                    if self._actions[extra_button_name].isChecked():
+                        # Button was checked, update icon to checked
+                        self._actions[extra_button_name].setIcon(
+                            QIcon(os.path.join(extra_button_dir, extra_button_name + "_checked.png"))
+                            )
+                        self._actions[extra_button_name].setChecked(True)
+                        
+                    else:
+                        # Button unchecked
+                        self._actions[extra_button_name].setIcon(
+                            QIcon(os.path.join(extra_button_dir, extra_button_name + ".png"))
+                            )
+                        self._actions[extra_button_name].setChecked(False)
+
+
 class InteractiveFeaturesLineWidget(FeaturesLineWidget):
     """InteractiveFeaturesLineWidget class.
 
@@ -203,6 +323,12 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         signal_selection_box.addWidget(label)
         signal_selection_box.addLayout(self.signal_class_color_spinbox)
         self.layout().insertLayout(2, signal_selection_box)
+
+        # Create an instance of your custom toolbar
+        custom_toolbar = CustomNapariNavigationToolbar(self.canvas, parent=self)
+        # Replace the default toolbar with the custom one
+        self.setCustomToolbar(custom_toolbar)
+        self._replace_toolbar_icons()
 
         # Add span selection button to toolbar
         select_icon_file_path = Path(ICON_ROOT / "select.png").__str__()
