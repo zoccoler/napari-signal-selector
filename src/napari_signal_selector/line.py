@@ -4,6 +4,8 @@ import numpy as np
 import numpy.typing as npt
 from pathlib import Path
 from matplotlib.lines import Line2D
+from matplotlib.pyplot import scatter
+from matplotlib.colors import ListedColormap, Normalize
 from napari_matplotlib.line import FeaturesLineWidget
 from napari_matplotlib.base import NapariNavigationToolbar
 from napari_matplotlib.util import Interval
@@ -34,18 +36,25 @@ class InteractiveLine2D(Line2D):
         Matplotlib Line2D object.
     """
     cmap = get_custom_cat10based_cmap_list()
+    mpl_cmap = ListedColormap(cmap)
+    normalizer = Normalize(vmin=0, vmax=len(cmap) - 1)
     _default_alpha = 0.7
     _default_marker_size = 4
 
     def __init__(self, *args, label_from_napari_layer, color_from_napari_layer,
-                 selected=False, annotation=0, categorical_color=None, span_indices=[], **kwargs, ):
+                 selected=False, annotations=None, categorical_color=None, span_indices=[], **kwargs, ):
         super().__init__(*args, **kwargs)
         self.label_from_napari_layer = label_from_napari_layer
         self.color_from_napari_layer = color_from_napari_layer
         self._selected = selected
-        self._annotation = annotation
+        self._annotations = annotations
+        if self._annotations is None:
+            self._annotations = np.zeros(self.get_xdata().shape)
         self._categorical_color = categorical_color
         self._span_indices = span_indices
+        self._annotations_scatter = scatter(
+            self.get_xdata(), self.get_ydata(), c=self._annotations, cmap=self.mpl_cmap, norm=self.normalizer) 
+
 
     @property
     def selected(self):
@@ -63,21 +72,35 @@ class InteractiveLine2D(Line2D):
         self.figure.canvas.draw_idle()
 
     @property
-    def annotation(self):
+    def annotations(self):
         return self._annotation
 
-    @annotation.setter
-    def annotation(self, value):
-        self._annotation = value
-        if value > 0:
-            self.set_marker('o')
-            self.set_markersize(self._default_marker_size)
-            annotation_color = self.cmap[value]
-            self.set_markeredgecolor(annotation_color)
-            self.set_markeredgewidth(1)
-        elif value == 0:
-            self.set_marker('None')
-        self.figure.canvas.draw_idle()
+    @annotations.setter
+    def annotations(self, value):
+        # TO DO
+        # Feed value to indices given by span_indices
+        # if span_indices is empty, feed entire annotations with value
+        # update annotations_scatter 'c' parameter with self._annotations
+        # draw idle
+        if self._span_indices.any():
+            span_mask = np.in1d(np.indices(self._annotations.shape), span_indices)
+            self._annotations[span_mask] = value
+        else:
+            self._annotations[:] = value
+        # Update colors of scatter plot (markers)
+        # Find a way to update 'c'
+        # self._annotations_scatter.set?
+
+        # self._annotation = value
+        # if value > 0:
+        #     self.set_marker('o')
+        #     self.set_markersize(self._default_marker_size)
+        #     annotation_color = self.cmap[value]
+        #     self.set_markeredgecolor(annotation_color)
+        #     self.set_markeredgewidth(1)
+        # elif value == 0:
+        #     self.set_marker('None')
+        # self.figure.canvas.draw_idle()
 
     @property
     def categorical_color(self):
@@ -101,11 +124,11 @@ class InteractiveLine2D(Line2D):
     @span_indices.setter
     def span_indices(self, list_of_values):
         self._span_indices = list_of_values
-        if len(list_of_values) == 0:
-            self.set_markevery(None)
-        else:
-            self.set_markevery(list_of_values)
-        self.figure.canvas.draw_idle()
+        # if len(list_of_values) == 0:
+        #     self.set_markevery(None)
+        # else:
+        #     self.set_markevery(list_of_values)
+        # self.figure.canvas.draw_idle()
 
 
 class QtColorBox(QWidget):
