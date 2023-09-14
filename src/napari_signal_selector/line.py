@@ -811,6 +811,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
 
                 if update_lines:
                     line = self._lines[j]
+                    # Update line axes with current axes (in case axes were cleared)
                     line.axes = self.axes
                     # line.set_xdata(signal_x)
                     # line.set_ydata(signal_y)
@@ -833,6 +834,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                     # self.axes.add_line(line)
                     
                     self._lines += [line]
+                # Add (or re-add) every line and scatter to axes (in case axes were cleared)
                 line.add_to_axes()
             self.axes.set_xlabel(x_axis_name)
             self.axes.set_ylabel(y_axis_name)
