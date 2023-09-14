@@ -51,15 +51,15 @@ class InteractiveLine2D(Line2D):
         self._selected = selected
         self._annotations = annotations
         if self._annotations is None:
-            self._annotations = np.ones(self.get_xdata().shape).tolist()
+            self._annotations = np.zeros(self.get_xdata().shape).tolist()
         self._categorical_color = categorical_color
         self._span_indices = span_indices
         if self._axes:
             self._annotations_scatter = self._axes.scatter(
-                self.get_xdata(), self.get_ydata(), color='red')#c=self._annotations, cmap=self.mpl_cmap, norm=self.normalizer,)
-                # marker='o', s=self._default_marker_size) 
+                self.get_xdata(), self.get_ydata(), c=self._annotations, cmap=self.mpl_cmap, norm=self.normalizer,
+                marker='x', s=self._default_marker_size*4) 
             # self._axes.scatter([1,2,3,4,5], [0,1,1,2,2], color='red')
-            self.scatter = self._axes.scatter([0,200], [0,10], color='red', s=400)
+            # self.scatter = self._axes.scatter([0,200], [0,10], color='red', s=400)
         else:
             self._annotations_scatter = None
         a=1
@@ -75,9 +75,11 @@ class InteractiveLine2D(Line2D):
         if value == True:
             self.set_linestyle('--')
             self.set_alpha(1)
+            self.set_linewidth(2)
         elif value == False:
             self.set_linestyle('-')
             self.set_alpha(self._default_alpha)
+            self.set_linewidth(1)
         self._canvas.draw_idle()
 
     @property
@@ -100,7 +102,7 @@ class InteractiveLine2D(Line2D):
         # Update scatter plot x and y coordinates
         self._annotations_scatter.set_offsets(self.get_xydata().tolist())
         # Update scatter plot array with annotations (which yield marker colors)
-        # self._annotations_scatter.set_array(self._annotations)
+        self._annotations_scatter.set_array(self._annotations)
         self._canvas.draw_idle()
         # Update colors of scatter plot (markers)
         # Find a way to update 'c'
@@ -157,15 +159,16 @@ class InteractiveLine2D(Line2D):
             if self._annotations_scatter:
                 xdata, ydata = self.get_data()
                 self._annotations_scatter.set_offsets(list(zip(xdata, ydata)))
-                xydata = self.get_xydata()
-                self.scatter.set_offsets(xydata.tolist())
-                self.scatter.set_color('green')
-                self.scatter.set_sizes(np.repeat([400], len(xydata)))
+                # xydata = self.get_xydata()
+                # self.scatter.set_offsets(xydata.tolist())
+                # self.scatter.set_color('green')
+                # self.scatter.set_sizes(np.repeat([400], len(xydata)))
                 # self._axes.autoscale(enable=True, axis='both')
     def add_to_axes(self):
         if self._axes:
             self._axes.add_line(self)
-            self._axes.add_artist(self.scatter)
+            self._axes.add_artist(self._annotations_scatter)
+            # self._axes.add_artist(self.scatter)
 
     # def set_xdata(self, x):
     #     super().set_xdata(x)
@@ -709,11 +712,22 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         if 'Annotations' not in self.layers[0].features.keys():
             self.layers[0].features['Annotations'] = 0
         for line in self._selected_lines:
+            # Get table annotations corresponding to selected line
+            table_annotations = self.layers[0].features.loc[
+                self.layers[0].features[self.object_id_axis_key] == line.label_from_napari_layer, 'Annotations']
+            # Update table annotations with current signal class (if span selected, update only on span indices)
+            if len(line.span_indices) > 0:
+                span_mask = np.in1d(np.indices((len(line.annotations),)), line.span_indices)
+                table_annotations[span_mask] = 0
+            else:
+                table_annotations[:] = 0
+            # Update features and line annotations
             self.layers[0].features.loc[
-                self.layers[0].features[self.object_id_axis_key] == line.label_from_napari_layer, 'Annotations'] = 0
-            line.annotations = 0
+                self.layers[0].features[self.object_id_axis_key] == line.label_from_napari_layer, 'Annotations'] = table_annotations
+            line.annotations = table_annotations.values.tolist()
 
     def update_line_layout_from_column(self, column_name='Annotations', markers=False):
+        # TODO: update this: test it and add linecollection to display segments with different colors
         """Update line layout (color or annotation) from a column in the features table.
 
         Markers are used to display annotations, while line colors are used to display categorical values.
