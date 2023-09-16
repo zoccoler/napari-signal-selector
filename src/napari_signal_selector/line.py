@@ -4,12 +4,13 @@ import numpy as np
 import numpy.typing as npt
 from pathlib import Path
 from matplotlib.lines import Line2D
+from matplotlib.collections import LineCollection
 # from matplotlib.pyplot import scatter
 from matplotlib.colors import ListedColormap, Normalize
 from napari_matplotlib.line import FeaturesLineWidget
 from napari_matplotlib.base import NapariNavigationToolbar
 from napari_matplotlib.util import Interval
-from napari_signal_selector.utilities import get_custom_cat10based_cmap_list
+from napari_signal_selector.utilities import get_custom_cat10based_cmap_list, generate_line_segments_array
 from matplotlib.widgets import SpanSelector
 from qtpy.QtWidgets import QWidget, QSpinBox, QLabel, QHBoxLayout
 from qtpy.QtCore import Qt
@@ -42,7 +43,7 @@ class InteractiveLine2D(Line2D):
     _default_marker_size = 4
 
     def __init__(self, *args, axes=None, canvas=None, label_from_napari_layer, color_from_napari_layer,
-                 selected=False, annotations=None, categorical_color=None, span_indices=[], **kwargs, ):
+                 selected=False, annotations=None, predictions=None, span_indices=None, **kwargs, ):
         super().__init__(*args, **kwargs)
         self._axes = axes
         self._canvas = canvas
@@ -52,17 +53,29 @@ class InteractiveLine2D(Line2D):
         self._annotations = annotations
         if self._annotations is None:
             self._annotations = np.zeros(self.get_xdata().shape).tolist()
-        self._categorical_color = categorical_color
+        self._predictions = predictions
+        if self._predictions is None:
+            self._predictions = np.zeros(self.get_xdata().shape).tolist()
         self._span_indices = span_indices
+        if self._span_indices is None:
+            self._span_indices = []
         if self._axes:
+            xdata = self.get_xdata()
+            ydata = self.get_ydata()
+            # Create scatter for annotations
             self._annotations_scatter = self._axes.scatter(
-                self.get_xdata(), self.get_ydata(), c=self._annotations, cmap=self.mpl_cmap, norm=self.normalizer,
-                marker='x', s=self._default_marker_size*4) 
-            # self._axes.scatter([1,2,3,4,5], [0,1,1,2,2], color='red')
-            # self.scatter = self._axes.scatter([0,200], [0,10], color='red', s=400)
+                xdata, ydata, c=self._annotations, cmap=self.mpl_cmap, norm=self.normalizer,
+                marker='x', s=self._default_marker_size*4, zorder=3)
+            segments = generate_line_segments_array(xdata, ydata)
+            # Repeat predictions for interpolated segments (except first and last ones)
+            predictions_with_interpolation = np.repeat(self._predictions, 2)[1:-1]
+            # Create line collection for predictions
+            self._predictions_linecollection = LineCollection(segments, cmap=self.mpl_cmap, norm=self.normalizer,
+                                                              zorder=4)
+            self._predictions_linecollection.set_array(predictions_with_interpolation)
         else:
             self._annotations_scatter = None
-        a=1
+            self._predictions_linecollection = None
 
 
     @property
@@ -88,50 +101,31 @@ class InteractiveLine2D(Line2D):
 
     @annotations.setter
     def annotations(self, list_of_values):
-        # TO DO
-        # Feed value to indices given by span_indices
-        # if span_indices is empty, feed entire annotations with value
-        # update annotations_scatter 'c' parameter with self._annotations
-        # draw idle
-        # if self._span_indices.any():
-        #     span_mask = np.in1d(np.indices(self._annotations.shape), self._span_indices)
-        #     self._annotations[span_mask] = value
-        # else:
-        #     self._annotations[:] = value
         self._annotations = list_of_values
         # Update scatter plot x and y coordinates
-        self._annotations_scatter.set_offsets(self.get_xydata().tolist())
+        # self._annotations_scatter.set_offsets(self.get_xydata().tolist())
         # Update scatter plot array with annotations (which yield marker colors)
         self._annotations_scatter.set_array(self._annotations)
         self._canvas.draw_idle()
-        # Update colors of scatter plot (markers)
-        # Find a way to update 'c'
-        # self._annotations_scatter.set?
-
-        # self._annotation = value
-        # if value > 0:
-        #     self.set_marker('o')
-        #     self.set_markersize(self._default_marker_size)
-        #     annotation_color = self.cmap[value]
-        #     self.set_markeredgecolor(annotation_color)
-        #     self.set_markeredgewidth(1)
-        # elif value == 0:
-        #     self.set_marker('None')
-        # self.figure.canvas.draw_idle()
 
     @property
-    def categorical_color(self):
-        return self._categorical_color
+    def predictions(self):
+        return self._predictions
 
-    @categorical_color.setter
-    def categorical_color(self, value):
-        self._categorical_color = value
-        if value is not None:
-            color = self.cmap[value]
-            self.set_color(color)
-        else:
-            # Restore original line color
-            self.set_color(self.color_from_napari_layer)
+    @predictions.setter
+    def predictions(self, list_of_values):
+        self._predictions = list_of_values
+        # Update line collection plot x and y coordinates
+        # xdata = self.get_xdata()
+        # ydata = self.get_ydata()
+        # segments = generate_line_segments_array(xdata, ydata)
+        # Repeat predictions for interpolated segments (except first and last ones)
+        predictions_with_interpolation = np.repeat(self._predictions, 2)[1:-1]
+        # Create line collection for predictions
+        # self._predictions_linecollection = LineCollection(segments, cmap=self.mpl_cmap, norm=self.normalizer)
+
+        # Update line collection plot array with predictions
+        self._predictions_linecollection.set_array(predictions_with_interpolation)
         self._canvas.draw_idle()
 
     @property
@@ -159,16 +153,17 @@ class InteractiveLine2D(Line2D):
             if self._annotations_scatter:
                 xdata, ydata = self.get_data()
                 self._annotations_scatter.set_offsets(list(zip(xdata, ydata)))
-                # xydata = self.get_xydata()
-                # self.scatter.set_offsets(xydata.tolist())
-                # self.scatter.set_color('green')
-                # self.scatter.set_sizes(np.repeat([400], len(xydata)))
-                # self._axes.autoscale(enable=True, axis='both')
+        if hasattr(self, '_predictions_linecollection'):
+            if self._predictions_linecollection:
+                xdata, ydata = self.get_data()
+                segments = generate_line_segments_array(xdata, ydata)
+                self._predictions_linecollection.set_segments(segments)
+
     def add_to_axes(self):
         if self._axes:
             self._axes.add_line(self)
             self._axes.add_artist(self._annotations_scatter)
-            # self._axes.add_artist(self.scatter)
+            self._axes.add_collection(self._predictions_linecollection)
 
     # def set_xdata(self, x):
     #     super().set_xdata(x)
@@ -184,17 +179,17 @@ class InteractiveLine2D(Line2D):
     #         self._annotations_scatter.set_offsets(list(zip(x, y)))
     #         self._canvas.draw_idle()
 
-    @property
-    def axes(self):
-        print("Accessing axes")
-        print(self._axes)
-        return self._axes
+    # @property
+    # def axes(self):
+    #     print("Accessing axes")
+    #     print(self._axes)
+    #     return self._axes
     
-    @axes.setter
-    def axes(self, value):
-        print("Modifying axes")
-        self._axes = value
-        print(self._axes)
+    # @axes.setter
+    # def axes(self, value):
+    #     print("Modifying axes")
+    #     self._axes = value
+    #     print(self._axes)
 
 
 class QtColorBox(QWidget):
@@ -620,10 +615,11 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                 self._on_span_select(0, 0)
                 self._clear_selections()
             # Right click resets span annotations if span selector is enabled
-            if self.toolbar._actions['span_select'].isChecked():
+            elif self.toolbar._actions['span_select'].isChecked():
                 self._on_span_select(0, 0)
-            # resets plot colors (in case categoriy color were set)
-            self.reset_plot_colors()
+            else:
+                # resets plot colors (in case predictions colors were set)
+                self.reset_plot_prediction_colors()
 
         elif event.button == 1:
             # If left-click with select tool enabled and shift key pressed, select all lines
@@ -631,7 +627,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                 if modifiers == Qt.ShiftModifier:
                     self._select_all_lines()
 
-            self.reset_plot_colors()
+            # self.reset_plot_prediction_colors()
 
     def _clear_selections(self):
         """Clear all selected lines.
@@ -726,52 +722,37 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                 self.layers[0].features[self.object_id_axis_key] == line.label_from_napari_layer, 'Annotations'] = table_annotations
             line.annotations = table_annotations.values.tolist()
 
-    def update_line_layout_from_column(self, column_name='Annotations', markers=False):
+    def update_line_layout_from_column(self, column_name='Predictions'):
         # TODO: update this: test it and add linecollection to display segments with different colors
-        """Update line layout (color or annotation) from a column in the features table.
+        """Update line layout (line collection) from a column in the features table.
 
-        Markers are used to display annotations, while line colors are used to display categorical values.
+        Line colors are used to display prediction values.
 
         Parameters
         ----------
         column_name : str
-            Name of the column with annotations or with results from a classification model.
-        markers : bool, optional
-            If True, update line annotations, if False, update line categorical colors, by default False.
+            Name of the column with results from a classification model.
         """
         for line in self._lines:
             label = line.label_from_napari_layer
             feature_table = self.layers[0].features
             # table = self.viewer.layers.selection.active.features
             # Get the annotation for the current object_id from table column
-            values = feature_table[feature_table[self.object_id_axis_key] == label][column_name].values
-            # If all values are the same, use that value
-            if np.all(values == values[0]):
-                value = values[0]
-            else:
-                # If not, get the most frequent non-zero annotation
-                unique_values, counts = np.unique(values, return_counts=True)
-                # Get the most frequent annotation
-                value = values[np.argmax(counts[1:])]  # exclude 0
-                indices = np.where(values == value)[0]
-            if markers:
-                line.annotations = value
-                line.span_indices = indices
-            else:
-                line.categorical_color = value
+            list_of_values = feature_table[feature_table[self.object_id_axis_key] == label][column_name].values
+            line.predictions = list_of_values
 
-    def reset_plot_colors(self):
+    def reset_plot_prediction_colors(self):
         """Reset plot colors to original colors from napari layer (remove categorical colors).
         """
         for line in self._lines:
-            line.categorical_color = None
+            line.predictions = np.zeros(line.get_xdata().shape).tolist()
         return
 
     def reset_plot_annotations(self):
         """Reset plot annotations to 0 (remove annotations).
         """
         for line in self._lines:
-            line.annotation = 0
+            line.annotations = np.zeros(line.get_xdata().shape).tolist()
         return
 
     def _get_data(self) -> Tuple[npt.NDArray[Any], npt.NDArray[Any], str, str]:
