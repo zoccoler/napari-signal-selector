@@ -5,7 +5,6 @@ import numpy.typing as npt
 from pathlib import Path
 from matplotlib.lines import Line2D
 from matplotlib.collections import LineCollection
-# from matplotlib.pyplot import scatter
 from matplotlib.colors import ListedColormap, Normalize
 from napari_matplotlib.line import FeaturesLineWidget
 from napari_matplotlib.base import NapariNavigationToolbar
@@ -102,8 +101,6 @@ class InteractiveLine2D(Line2D):
     @annotations.setter
     def annotations(self, list_of_values):
         self._annotations = list_of_values
-        # Update scatter plot x and y coordinates
-        # self._annotations_scatter.set_offsets(self.get_xydata().tolist())
         # Update scatter plot array with annotations (which yield marker colors)
         self._annotations_scatter.set_array(self._annotations)
         self._canvas.draw_idle()
@@ -115,15 +112,8 @@ class InteractiveLine2D(Line2D):
     @predictions.setter
     def predictions(self, list_of_values):
         self._predictions = list_of_values
-        # Update line collection plot x and y coordinates
-        # xdata = self.get_xdata()
-        # ydata = self.get_ydata()
-        # segments = generate_line_segments_array(xdata, ydata)
         # Repeat predictions for interpolated segments (except first and last ones)
         predictions_with_interpolation = np.repeat(self._predictions, 2)[1:-1]
-        # Create line collection for predictions
-        # self._predictions_linecollection = LineCollection(segments, cmap=self.mpl_cmap, norm=self.normalizer)
-
         # Update line collection plot array with predictions
         self._predictions_linecollection.set_array(predictions_with_interpolation)
         self._canvas.draw_idle()
@@ -164,32 +154,6 @@ class InteractiveLine2D(Line2D):
             self._axes.add_line(self)
             self._axes.add_artist(self._annotations_scatter)
             self._axes.add_collection(self._predictions_linecollection)
-
-    # def set_xdata(self, x):
-    #     super().set_xdata(x)
-    #     if hasattr(self, '_annotations_scatter'):
-    #         y = self.get_ydata()
-    #         self._annotations_scatter.set_offsets(list(zip(x, y)))
-    #         self._canvas.draw_idle()
-
-    # def set_ydata(self, y):
-    #     super().set_ydata(y)
-    #     if hasattr(self, '_annotations_scatter'):
-    #         x = self.get_xdata()
-    #         self._annotations_scatter.set_offsets(list(zip(x, y)))
-    #         self._canvas.draw_idle()
-
-    # @property
-    # def axes(self):
-    #     print("Accessing axes")
-    #     print(self._axes)
-    #     return self._axes
-    
-    # @axes.setter
-    # def axes(self, value):
-    #     print("Modifying axes")
-    #     self._axes = value
-    #     print(self._axes)
 
 
 class QtColorBox(QWidget):
@@ -627,8 +591,6 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                 if modifiers == Qt.ShiftModifier:
                     self._select_all_lines()
 
-            # self.reset_plot_prediction_colors()
-
     def _clear_selections(self):
         """Clear all selected lines.
         """
@@ -723,7 +685,6 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             line.annotations = table_annotations.values.tolist()
 
     def update_line_layout_from_column(self, column_name='Predictions'):
-        # TODO: update this: test it and add linecollection to display segments with different colors
         """Update line layout (line collection) from a column in the features table.
 
         Line colors are used to display prediction values.
@@ -736,7 +697,6 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         for line in self._lines:
             label = line.label_from_napari_layer
             feature_table = self.layers[0].features
-            # table = self.viewer.layers.selection.active.features
             # Get the annotation for the current object_id from table column
             list_of_values = feature_table[feature_table[self.object_id_axis_key] == label][column_name].values
             line.predictions = list_of_values
@@ -808,10 +768,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                     line = self._lines[j]
                     # Update line axes with current axes (in case axes were cleared)
                     line.axes = self.axes
-                    # line.set_xdata(signal_x)
-                    # line.set_ydata(signal_y)
                     line.set_data(signal_x, signal_y)
-                    # self.axes.add_line(line)
                 else:
                     line = InteractiveLine2D(
                         xdata=signal_x, ydata=signal_y,
@@ -825,9 +782,6 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                         alpha=0.7,
                         axes=self.axes,
                         canvas=self.figure.canvas)
-                    # line.set_data(signal_x, signal_y)                    
-                    # self.axes.add_line(line)
-                    
                     self._lines += [line]
                 # Add (or re-add) every line and scatter to axes (in case axes were cleared)
                 line.add_to_axes()
