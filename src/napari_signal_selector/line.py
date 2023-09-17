@@ -697,9 +697,12 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         for line in self._lines:
             label = line.label_from_napari_layer
             feature_table = self.layers[0].features
-            # Get the annotation for the current object_id from table column
+            # Get the annotation/predictions for the current object_id from table column
             list_of_values = feature_table[feature_table[self.object_id_axis_key] == label][column_name].values
-            line.predictions = list_of_values
+            if column_name == 'Predictions':
+                line.predictions = list_of_values
+            elif column_name == 'Annotations':
+                line.annotations = list_of_values
 
     def reset_plot_prediction_colors(self):
         """Reset plot colors to original colors from napari layer (remove categorical colors).
