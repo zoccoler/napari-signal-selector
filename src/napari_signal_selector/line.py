@@ -15,7 +15,6 @@ from qtpy.QtWidgets import QWidget, QSpinBox, QLabel, QHBoxLayout
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QGuiApplication, QColor, QPainter
 
-from matplotlib.backends.qt_compat import  _enum, _to_int
 from qtpy.QtWidgets import QLabel, QWidget, QSizePolicy
 from qtpy.QtGui import QIcon
 import os
@@ -261,13 +260,12 @@ class CustomNapariNavigationToolbar(NapariNavigationToolbar):
         # https://github.com/matplotlib/matplotlib/blob/85d7bb370186f2fa86df6ecc3d5cd064eb7f0b45/lib/matplotlib/backends/backend_qt.py#L631
         if self.tb_coordinates:
             self.locLabel = QLabel("", self)
-            self.locLabel.setAlignment(Qt.AlignmentFlag(
-                _to_int(_enum("QtCore.Qt.AlignmentFlag").AlignRight) |
-                _to_int(_enum("QtCore.Qt.AlignmentFlag").AlignVCenter)))
-            self.locLabel.setSizePolicy(QSizePolicy(
-                _enum("QtWidgets.QSizePolicy.Policy").Expanding,
-                _enum("QtWidgets.QSizePolicy.Policy").Ignored,
-            ))
+            self.locLabel.setAlignment(
+                Qt.AlignRight | Qt.AlignVCenter)
+            self.locLabel.setSizePolicy(
+                QSizePolicy.Expanding,
+                QSizePolicy.Ignored,
+            )
             labelAction = self.addWidget(self.locLabel)
             labelAction.setVisible(True)      
 
@@ -740,8 +738,13 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         feature_table = feature_table.sort_values(by=[self.object_id_axis_key, self.x_axis_key])
         # Get data for each object_id (usually label)
         grouped = feature_table.groupby(self.object_id_axis_key)
-        x = np.array([sub_df[self.x_axis_key].values for label, sub_df in grouped]).T.squeeze()
-        y = np.array([sub_df[self.y_axis_key].values for label, sub_df in grouped]).T.squeeze()
+        
+        x, y = [], []
+        for label, sub_df in grouped:
+            x.append(sub_df[self.x_axis_key].values)
+            y.append(sub_df[self.y_axis_key].values)
+        # x = np.array([sub_df[self.x_axis_key].values for label, sub_df in grouped]).T.squeeze(axis=-1)
+        # y = np.array([sub_df[self.y_axis_key].values for label, sub_df in grouped]).T.squeeze(axis=-1)
 
         x_axis_name = str(self.x_axis_key)
         y_axis_name = str(self.y_axis_key)
@@ -762,7 +765,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             if len(self._lines) == 0:
                 update_lines = False
 
-            for j, (signal_x, signal_y) in enumerate(zip(x.T, y.T)):
+            for j, (signal_x, signal_y) in enumerate(zip(x, y)):
                 if self.layers[0].show_selected_label and j != self.layers[0].selected_label - 1:
                     continue
                 label_name = self.y_axis_key
