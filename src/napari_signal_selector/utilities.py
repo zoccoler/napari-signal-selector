@@ -1,41 +1,47 @@
-def generate_categorical_labels_colormap(categorical_labels):
-    """
-    Generate a colormap for the categorical (prediction) labels.
-    Parameters
-    ----------
-    categorical_labels : np.ndarray
-        categorical_labels array.
-    Returns
-    -------
-    cmap_dict : dict
-        Dictionary mapping each categorical label (predictions) to a respective color.
+import numpy as np
 
-    From napari-clusters-plotter v0.7.2:
-    https://github.com/BiAPoL/napari-clusters-plotter/blob/96b8ad9b9e06b41c830f2eb69648636a05def0a7/napari_clusters_plotter/_plotter.py#L647
-    """
-    from napari_signal_selector.utilities import get_nice_colormap
-    import numpy as np
+def get_custom_cat10based_cmap_list():
+    from cmap import Colormap
+    cat10_cmap = Colormap(get_nice_colormap()).lut()
+    cat10_cmap_list = []
+    for i in range(cat10_cmap.shape[0]):
+        if i == 0:
+            cat10_cmap_list.append((0, 0, 0, 0))
+        elif i == 4:  # replace red color by dark violet
+            cat10_cmap_list.append((0.5804, 0, 0.8274, 1))
+        elif i == 5:  # replace soft pink by paleturquoise
+            cat10_cmap_list.append((0.6863, 0.9333, 0.9333, 1))
+        else:
+            cat10_cmap_list.append(tuple(cat10_cmap[i - 1]))
+    return cat10_cmap_list
 
-    colors = get_nice_colormap()
+def linear_interpolate(data):
+    from scipy.interpolate import interp1d
+    # Extract x and y coordinates
+    x = data[:, 0, 0]
+    y = data[:, 0, 1]
 
-    from vispy.color import Color
+    # Define a new index for original and interpolated points
+    index = np.arange(data.shape[0])
+    new_index = np.linspace(0, index[-1], 2*index[-1] + 1)
 
-    cmap = [Color(hex_name).RGBA.astype("float") / 255 for hex_name in colors]
+    # Create interpolation functions for x and y
+    fx = interp1d(index, x, kind='linear')
+    fy = interp1d(index, y, kind='linear')
 
-    # generate dictionary mapping each prediction to its respective color
-    # list cycling with  % introduced for all labels except hdbscan noise points (id = -1)
-    cmap_dict = {
-        int(prediction): (
-            cmap[int(prediction) % len(cmap)]
-            if prediction >= 0
-            else [0, 0, 0, 0]
-        )
-        for prediction in np.unique(categorical_labels)
-    }
-    # take care of background label
-    cmap_dict[0] = [0, 0, 0, 0]
-    return cmap_dict
+    # Interpolate to get new x and y values
+    new_x = fx(new_index)
+    new_y = fy(new_index)
 
+    # Combine into the new data array
+    return np.column_stack((new_x, new_y)).reshape(-1, 1, 2)
+
+def generate_line_segments_array(x, y):
+    points = np.array([x, y]).T.reshape(-1, 1, 2)
+    # interpolate segments to have half segment around dot/coordinate
+    points = linear_interpolate(points)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+    return segments
 
 def get_nice_colormap():
     colours_w_old_colors = [

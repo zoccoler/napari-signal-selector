@@ -5,8 +5,8 @@ from skimage import morphology
 from scipy import signal
 from skimage.measure import label, regionprops_table
 import pandas as pd
-from napari_matplotlib.line import FeaturesLineWidget
-from napari_signal_selector.line import InteractiveFeaturesLineWidget
+from napari_signal_selector.line import FeaturesLineWidget
+from napari_signal_selector.interactive import InteractiveFeaturesLineWidget
 
 seed = 42
 np.random.seed(seed)
