@@ -6,7 +6,7 @@ from pathlib import Path
 from matplotlib.lines import Line2D
 from matplotlib.collections import LineCollection
 from matplotlib.colors import ListedColormap, Normalize
-from napari_matplotlib.line import FeaturesLineWidget
+from .line import FeaturesLineWidget
 from napari_matplotlib.base import NapariNavigationToolbar
 from napari_matplotlib.util import Interval
 from napari_signal_selector.utilities import get_custom_cat10based_cmap_list, generate_line_segments_array
