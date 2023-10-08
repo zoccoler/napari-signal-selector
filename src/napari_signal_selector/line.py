@@ -8,7 +8,7 @@ from qtpy.QtWidgets import QComboBox, QLabel, QVBoxLayout, QWidget
 from napari_matplotlib.base import NapariMPLWidget
 from napari_matplotlib.util import Interval
 
-__all__ = ["LineBaseWidget", "MetadataLineWidget", "FeaturesLineWidget"]
+__all__ = ["LineBaseWidget", "FeaturesLineWidget"]
 
 
 class LineBaseWidget(NapariMPLWidget):

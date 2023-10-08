@@ -218,7 +218,7 @@ class CustomNapariNavigationToolbar(NapariNavigationToolbar):
         self.tb_coordinates = self.coordinates
         self.extra_button_paths = []
 
-    def _add_new_button(self, text, tooltip_text, icon_image_file_path, callback, checkable=False, separator=True):
+    def _add_new_button(self, text, tooltip_text, icon_image_file_path, callback_name, checkable=False, separator=True):
         """Add a new buttons to the toolbar.
 
         Parameters
@@ -229,7 +229,7 @@ class CustomNapariNavigationToolbar(NapariNavigationToolbar):
             the tooltip text exhibited when cursor hovers over button
         icon_image_file_path : str
             path to the "png" file containing the button image
-        callback : function
+        callback_name : function
             function to be called when button is clicked
         separator: bool
             Whether to add a separator before new button
@@ -237,7 +237,7 @@ class CustomNapariNavigationToolbar(NapariNavigationToolbar):
             flag that indicates if button should or not be chackable
         """        
         self.extra_button_paths.append(icon_image_file_path)
-        self.toolitems.append((text, tooltip_text, icon_image_file_path, callback))
+        self.toolitems.append((text, tooltip_text, icon_image_file_path, callback_name))
         # Get last widget (A QLabel spacer)
         n_widgets = self.layout().count() # get number of widgets
         myWidget = self.layout().itemAt(n_widgets-1).widget() # get last widget
@@ -249,7 +249,7 @@ class CustomNapariNavigationToolbar(NapariNavigationToolbar):
             self.addSeparator()
         # Add custom button (addAction from QToolBar)
         # https://doc.qt.io/qtforpython-5/PySide2/QtWidgets/QToolBar.html#PySide2.QtWidgets.PySide2.QtWidgets.QToolBar.addAction
-        a = self.addAction(QIcon(icon_image_file_path), text, callback)
+        a = self.addAction(QIcon(icon_image_file_path), text, getattr(self.tb_parent, callback_name))
         self._actions[text] = a
         if checkable:
             a.setCheckable(True)
@@ -379,19 +379,19 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         # Add span selection button to toolbar
         select_icon_file_path = Path(ICON_ROOT / "select.png").__str__()
         self.toolbar._add_new_button(
-            'select', "Enable or disable line selection", select_icon_file_path, self.enable_selections, True)
+            'select', "Enable or disable line selection", select_icon_file_path, "enable_selections", True)
         # Add span selection button to toolbar
         span_select_icon_file_path = Path(ICON_ROOT / "span_select.png").__str__()
         self.toolbar._add_new_button(
-            'span_select', "Enable or disable span selection", span_select_icon_file_path, self.enable_span_selections, True)
+            'span_select', "Enable or disable span selection", span_select_icon_file_path, "enable_span_selections", True)
         # Insert the add_annotation
         add_annotation_icon_file_path = Path(ICON_ROOT / "add_annotation.png").__str__()
         self.toolbar._add_new_button(
-            'add_annotation', "Add selected lines to current signal class", add_annotation_icon_file_path, self.add_annotation, False)
+            'add_annotation', "Add selected lines to current signal class", add_annotation_icon_file_path, "add_annotation", False)
         # Insert the delete_annotation
         delete_annotation_icon_file_path = Path(ICON_ROOT / "delete_annotation.png").__str__()
         self.toolbar._add_new_button(
-            'delete_annotation', "Delete selected lines class annotation", delete_annotation_icon_file_path, self.remove_annotation, False)
+            'delete_annotation', "Delete selected lines class annotation", delete_annotation_icon_file_path, "remove_annotation", False)
 
         # Create pick event connection id (used by line selector)
         self.pick_event_connection_id = None
@@ -399,6 +399,8 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self.mouse_click_event_connection_id = None
         # Set initial signal class valus to 0
         self._signal_class = 0
+        # Initialize current_time_line
+        self.vertical_time_line = None
 
         # Create horizontal Span Selector
         self.span_selector = SpanSelector(ax=self.axes,
@@ -414,6 +416,26 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         # Always enable mouse clicks to clear selections (right button)
         self._enable_mouse_clicks(True)
 
+        # z-step changed in viewer
+        # Disconnect draw event on z-slider callback (improves performance)
+        current_step_callbacks = self.viewer.dims.events.current_step.callbacks
+        draw_callback_tuple = [callback for callback in current_step_callbacks if callback[1] == '_draw'][0]
+        self.viewer.dims.events.current_step.disconnect(draw_callback_tuple)
+        # Connect new callback
+        self.viewer.dims.events.current_step.connect(self.on_dims_slider_change)
+        
+    def on_dims_slider_change(self) -> None:
+        pass
+        # TO DO: update vertical line over plot (consider multithreading for performance, check details here:
+        #  - https://napari.org/dev/guides/threading.html#multithreading-in-napari)
+        # if self.viewer.dims.ndim > 2:
+        #     current_time_point = self.viewer.dims.current_step[0]
+        #     if self.vertical_time_line is None:
+        #         self.vertical_time_line = self.axes.axvline(x=current_time_point, color='white', ls='--')
+        #     else:
+        #         self.vertical_time_line.set_xdata(current_time_point)
+        #     self.canvas.figure.canvas.draw_idle()
+    
     def on_update_layers(self) -> None:
         """
         Called when the layer selection changes by ``self.update_layers()``.
