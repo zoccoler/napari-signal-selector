@@ -3,7 +3,7 @@ from pathlib import Path
 
 DATA_PATH = Path(__file__).parent / "data"
 
-def make_sample_data():
+def load_flashing_polygons_data():
     """Generates an image"""
     from skimage.io import imread
     from pandas import read_csv
