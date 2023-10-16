@@ -11,25 +11,32 @@ An interactive signal selector for napari, based on napari-matplotlib.
 
 ----------------------------------
 
-This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookiecutter-napari-plugin] template.
+## Usage
 
-<!--
-Don't miss the full getting started guide to set up your new package:
-https://github.com/napari/cookiecutter-napari-plugin#getting-started
 
-and review the napari docs for plugin developers:
-https://napari.org/stable/plugins/index.html
--->
+### Input Data
+
 
 ## Installation
 
-You can install `napari-signal-selector` via [pip]:
+You can install `napari-signal-selector` via [pip]. Follow these steps from a terminal.
+
+We recommend using `mamba-forge` whenever possible. Click [here](https://github.com/conda-forge/miniforge#mambaforge) to choose the right download option for your OS.
+**If you use `mamba-forge`, replace the `conda` term whenever you see it below with `mamba`.**
+
+Create a conda environment :
+
+    conda create -n napari-ss-env napari python=3.9
+    
+Activate the environment :
+
+    conda activate napari-ss-env
+
+Install `napari-signal-selector` via [pip] :
 
     pip install napari-signal-selector
 
-
-
-To install latest development version :
+Alternatively, install latest development version with :
 
     pip install git+https://github.com/zoccoler/napari-signal-selector.git
 
