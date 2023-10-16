@@ -12,6 +12,6 @@ def load_flashing_polygons_data():
     timelapse = imread(DATA_PATH / "synthetic_timelapse.tif")
     timelapse = timelapse[:, newaxis]
     labels = imread(DATA_PATH / "synthetic_labels.tif")
-    table = read_csv(DATA_PATH / "table_synthetic_data_with_annotations.csv")
+    table = read_csv(DATA_PATH / "table_synthetic_data_with_annotations_and_predictions.csv")
     return [(timelapse, {'name': 'Synthetic Timelapse'}), 
             (labels, {'name': 'Synthetic Labels', 'features': table, 'opacity': 0.4}, 'labels')]
