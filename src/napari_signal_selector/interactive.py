@@ -421,7 +421,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self.setCustomToolbar(custom_toolbar)
         self._replace_toolbar_icons()
 
-        # Add span selection button to toolbar
+        # Add selection button to toolbar
         select_icon_file_path = Path(ICON_ROOT / "select.png").__str__()
         self.toolbar._add_new_button(
             'select', "Enable or disable line selection", select_icon_file_path, "enable_selections", True)
@@ -429,6 +429,10 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         span_select_icon_file_path = Path(ICON_ROOT / "span_select.png").__str__()
         self.toolbar._add_new_button(
             'span_select', "Enable or disable span selection", span_select_icon_file_path, "enable_span_selections", True)
+         # Insert picker to toolbar
+        picker_icon_file_path = Path(ICON_ROOT / "picker.png").__str__()
+        self.toolbar._add_new_button(
+            'picker', "Pick signal and set corresponding label in napari", picker_icon_file_path, "pick_signal", False)
         # Insert the add_annotation
         add_annotation_icon_file_path = Path(ICON_ROOT / "add_annotation.png").__str__()
         self.toolbar._add_new_button(
@@ -561,6 +565,10 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             napari event.
         """
         self._draw()
+
+    def pick_signal(self):
+        print('pick_signal')
+                
 
     def add_annotation(self):
         """Add selected lines to current signal class.
