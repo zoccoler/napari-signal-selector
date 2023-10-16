@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, Union
 import napari
 import numpy as np
 import numpy.typing as npt
@@ -11,7 +11,7 @@ from napari_matplotlib.base import NapariNavigationToolbar
 from napari_matplotlib.util import Interval
 from napari_signal_selector.utilities import get_custom_cat10based_cmap_list, generate_line_segments_array
 from matplotlib.widgets import SpanSelector
-from qtpy.QtWidgets import QWidget, QSpinBox, QLabel, QHBoxLayout
+from qtpy.QtWidgets import QWidget, QSpinBox, QLabel, QHBoxLayout, QCheckBox, QComboBox, QFrame
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QGuiApplication, QColor, QPainter
 
@@ -38,7 +38,7 @@ class InteractiveLine2D(Line2D):
     mpl_cmap = ListedColormap(cmap)
     normalizer = Normalize(vmin=0, vmax=len(cmap) - 1)
     _default_alpha = 0.7
-    _default_marker_size = 4
+    _default_marker_size = 8
 
     def __init__(self, *args, axes=None, canvas=None, label_from_napari_layer, color_from_napari_layer,
                  selected=False, annotations=None, predictions=None, span_indices=None, **kwargs, ):
@@ -63,7 +63,7 @@ class InteractiveLine2D(Line2D):
             # Create scatter for annotations
             self._annotations_scatter = self._axes.scatter(
                 xdata, ydata, c=self._annotations, cmap=self.mpl_cmap, norm=self.normalizer,
-                marker='x', s=self._default_marker_size*4, zorder=3)
+                marker='x', s=self._default_marker_size, zorder=3)
             segments = generate_line_segments_array(xdata, ydata)
             # Repeat predictions for interpolated segments (except first and last ones)
             predictions_with_interpolation = np.repeat(self._predictions, 2)[1:-1]
@@ -105,6 +105,15 @@ class InteractiveLine2D(Line2D):
         self._canvas.draw_idle()
 
     @property
+    def annotations_visible(self):
+        return self._annotations_scatter.get_visible()
+    
+    @annotations_visible.setter
+    def annotations_visible(self, value):
+        self._annotations_scatter.set_visible(value)
+        self._canvas.draw_idle()
+
+    @property
     def predictions(self):
         return self._predictions
 
@@ -115,6 +124,15 @@ class InteractiveLine2D(Line2D):
         predictions_with_interpolation = np.repeat(self._predictions, 2)[1:-1]
         # Update line collection plot array with predictions
         self._predictions_linecollection.set_array(predictions_with_interpolation)
+        self._canvas.draw_idle()
+
+    @property
+    def predictions_visible(self):
+        return self._predictions_linecollection.get_visible()
+    
+    @predictions_visible.setter
+    def predictions_visible(self, value):
+        self._predictions_linecollection.set_visible(value)
         self._canvas.draw_idle()
 
     @property
@@ -365,9 +383,36 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         # Add stretch to the right to push buttons to the left
         self.signal_class_color_spinbox.addStretch(1)
 
+        # Create and add a vertical line (separator) to the layout
+        vline = QFrame(self)
+        vline.setLineWidth(2)
+        vline.setFrameShape(QFrame.VLine)
+        vline.setFrameShadow(QFrame.Sunken)
+
+        # Create show overlay layout
+        self.show_overlay_layout = QHBoxLayout(self)
+        # Create and add the checkbox to the layout
+        self.show_overlay_checkbox = QCheckBox("Show Overlay", self)
+        self.show_overlay_checkbox.stateChanged.connect(self.on_overlay_checkbox_change)
+        self.show_overlay_layout.addWidget(self.show_overlay_checkbox)
+        # Add overlay selector
+        self._selectors["overlay"] = QComboBox()
+        self._selectors["overlay"].setToolTip(('Select column with annotations/predictions'))
+        self._selectors["overlay"].setVisible(False)
+        self._selectors["overlay"].currentTextChanged.connect(self._draw)
+
+        self.show_overlay_layout.addWidget(self._selectors["overlay"])
+        # Add stretch to the right to push buttons to the left
+        self.show_overlay_layout.addStretch(1)
+
         signal_selection_box = QHBoxLayout()
         signal_selection_box.addWidget(label)
         signal_selection_box.addLayout(self.signal_class_color_spinbox)
+        # Add separator
+        signal_selection_box.addWidget(vline)
+        # Add show overlay box to signal selection box
+        signal_selection_box.addLayout(self.show_overlay_layout)
+        signal_selection_box.addStretch(1)
         self.layout().insertLayout(2, signal_selection_box)
 
         # Create an instance of your custom toolbar
@@ -401,6 +446,11 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self._signal_class = 0
         # Initialize current_time_line
         self.vertical_time_line = None
+        # Dictionary of valid overlays
+        self.allowed_overlays = {
+            'Annotations': {'display_markers': True},
+            'Predictions': {'display_markers': False},
+        }
 
         # Create horizontal Span Selector
         self.span_selector = SpanSelector(ax=self.axes,
@@ -415,15 +465,68 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self.span_selector.active = False
         # Always enable mouse clicks to clear selections (right button)
         self._enable_mouse_clicks(True)
+        # Populate overlay combobox with allowed overlays
+        self._populate_overlay_combobox()
+
 
         # z-step changed in viewer
         # Disconnect draw event on z-slider callback (improves performance)
         current_step_callbacks = self.viewer.dims.events.current_step.callbacks
         draw_callback_tuple = [callback for callback in current_step_callbacks if callback[1] == '_draw'][0]
         self.viewer.dims.events.current_step.disconnect(draw_callback_tuple)
-        # Connect new callback
+        # Connect new slider callback
         self.viewer.dims.events.current_step.connect(self.on_dims_slider_change)
         
+        # self.on_update_layers()
+            
+    def _populate_overlay_combobox(self) -> None:
+        """Populate overlay combobox with valid overlays keys.
+        """        
+        # Clear overlay combobox
+        while self._selectors['overlay'].count() > 0:
+            self._selectors['overlay'].removeItem(0)
+        # Add valid overlay keys for newly selected layer
+        self._selectors['overlay'].addItems(self._get_valid_overlay_keys())
+    
+    def _get_valid_overlay_keys(self) -> Tuple[str, ...]:
+        """Get valid overlays keys.
+
+        Looks for table columns that are also present at allowed_overlay_keys dictionary.
+
+        Returns
+        -------
+        Tuple[str, ...]
+            Valid overlays keys.
+        """
+        if len(self.layers) == 0 or not (hasattr(self.layers[0], "features")):
+            return []
+        else:
+            valid_keys = [key for key in self.layers[0].features.keys() if key in self.allowed_overlays.keys()]
+            return valid_keys
+        
+    @property
+    def overlay_axis_key(self) -> Union[str, None]:
+        """
+        Key for the overlay data.
+        """
+        if self._selectors["overlay"].count() == 0:
+            return None
+        else:
+            return self._selectors["overlay"].currentText()
+
+    @overlay_axis_key.setter
+    def overlay_axis_key(self, key: str) -> None:
+        self._selectors["overlay"].setCurrentText(key)
+        self._draw()
+        
+    def on_overlay_checkbox_change(self, state) -> None:
+        """Callback function for overlay checkbox change.
+
+        Updates overlay combobox visibility.
+        """
+        self._selectors["overlay"].setVisible(self.show_overlay_checkbox.isChecked())
+        self._draw()
+
     def on_dims_slider_change(self) -> None:
         pass
         # TO DO: update vertical line over plot (consider multithreading for performance, check details here:
@@ -445,6 +548,9 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             if 'show_selected_label' in self.layers[0].events.emitters.keys():
                 self.layers[0].events.show_selected_label.connect(self._show_selected_label)
                 self.layers[0].events.selected_label.connect(self._show_selected_label)
+            # Update overlay combobox
+            if 'overlay' in self._selectors.keys():
+                self._populate_overlay_combobox()
 
     def _show_selected_label(self, event: napari.utils.events.Event) -> None:
         """Redraw plot with selected label.
@@ -678,6 +784,9 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             self.layers[0].features.loc[
                 self.layers[0].features[self.object_id_axis_key] == line.label_from_napari_layer, 'Annotations'] = table_annotations
             line.annotations = table_annotations.values.tolist()
+        # Show overlays
+        self._selectors['overlay'].setCurrentText('Annotations')
+        self.show_overlay_checkbox.setChecked(True)
 
     def _remove_selected_lines_from_features(self, viewer=None):
         """Remove selected lines from current signal class.
@@ -704,25 +813,25 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                 self.layers[0].features[self.object_id_axis_key] == line.label_from_napari_layer, 'Annotations'] = table_annotations
             line.annotations = table_annotations.values.tolist()
 
-    def update_line_layout_from_column(self, column_name='Predictions'):
-        """Update line layout (line collection) from a column in the features table.
+    # def update_line_layout_from_column(self, column_name='Predictions', display_markers=False):
+    #     """Update line layout (line collection) from a column in the features table.
 
-        Line colors are used to display prediction values.
+    #     Line colors are used to display prediction values.
 
-        Parameters
-        ----------
-        column_name : str
-            Name of the column with results from a classification model.
-        """
-        for line in self._lines:
-            label = line.label_from_napari_layer
-            feature_table = self.layers[0].features
-            # Get the annotation/predictions for the current object_id from table column
-            list_of_values = feature_table[feature_table[self.object_id_axis_key] == label][column_name].values
-            if column_name == 'Predictions':
-                line.predictions = list_of_values
-            elif column_name == 'Annotations':
-                line.annotations = list_of_values
+    #     Parameters
+    #     ----------
+    #     column_name : str
+    #         Name of the column with results from a classification model.
+    #     """
+    #     for line in self._lines:
+    #         label = line.label_from_napari_layer
+    #         feature_table = self.layers[0].features
+    #         # Get the annotation/predictions for the current object_id from table column
+    #         list_of_values = feature_table[feature_table[self.object_id_axis_key] == label][column_name].values
+    #         if display_markers:
+    #             line.annotations = list_of_values
+    #         else:
+    #             line.predictions = list_of_values
 
     def reset_plot_prediction_colors(self):
         """Reset plot colors to original colors from napari layer (remove categorical colors).
@@ -811,6 +920,24 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                         axes=self.axes,
                         canvas=self.figure.canvas)
                     self._lines += [line]
+                # if show overlay is checked, draw annotations/predictions
+                if hasattr(self, 'show_overlay_checkbox') and self.show_overlay_checkbox.isChecked():
+                    if self.overlay_axis_key is not None:
+                        label = line.label_from_napari_layer
+                        feature_table = self.layers[0].features
+                        # Get the annotation/predictions for the current object_id from table column
+                        list_of_values = feature_table[feature_table[self.object_id_axis_key] == label][self.overlay_axis_key].values
+                        display_markers = self.allowed_overlays[self.overlay_axis_key]['display_markers']
+                        if display_markers:
+                            line.annotations = list_of_values
+                            line.annotations_visible = True
+                        else:
+                            line.predictions = list_of_values
+                            line.predictions_visible = True
+                else:
+                    line.annotations_visible = False
+                    line.predictions_visible = False
+
                 # Add (or re-add) every line and scatter to axes (in case axes were cleared)
                 line.add_to_axes()
             self.axes.set_xlabel(x_axis_name)
