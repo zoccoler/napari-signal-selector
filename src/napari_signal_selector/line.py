@@ -20,6 +20,8 @@ class LineBaseWidget(NapariMPLWidget):
                  ):
         super().__init__(napari_viewer, parent=parent)
         self.add_single_axes()
+        self.axes.tick_params(axis='x', colors='white')
+        self.axes.tick_params(axis='y', colors='white')
 
     def clear(self) -> None:
         """
