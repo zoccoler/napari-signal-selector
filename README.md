@@ -17,7 +17,7 @@ An interactive signal selector and annotator for napari, based on [napari-matplo
 
 This plugin opens an embedded plotter in napari capable of plotting and interacting (selecting/annotating) with individual object signals (typically temporal features).
 
-![plotting](./images/plotting.gif)
+![plotting](https://github.com/zoccoler/napari-signal-selector/raw/main/images/plotting.gif)
 
 ### Input Data
 
@@ -51,7 +51,7 @@ If a layer like this is selected, you can choose what to plot by means of dropdo
 
 Below is a basic example using the "Flashing Polygons" synthetic data:
 
-![intro](./images/intro.gif)
+![intro](https://github.com/zoccoler/napari-signal-selector/raw/main/images/intro.gif)
 
 ## Tools
 
@@ -59,22 +59,22 @@ Below is a basic example using the "Flashing Polygons" synthetic data:
 
 The selection tool (arrowhead icon) is a toggle button which enables you to select individual signals. Once activated, the icon gets highlighted and you can click over individual signals to select them. Right-clicking unselects everything.
 
-![select](./images/select.gif)
+![select](https://github.com/zoccoler/napari-signal-selector/raw/main/images/select.gif)
 
 If the region you want to click is too crowded, consider zooming in first and then selecting.
 
-![zoom-select](./images/zoom_select.gif)
+![zoom-select](https://github.com/zoccoler/napari-signal-selector/raw/main/images/zoom_select.gif)
 
 And if you know which label you want to select, you can enable `'show selected'` from the Labels layer options to solely display one label at a time. The Lables layer picker tool may help you get the right label.
 
-![show-selected](./images/show_selected.gif)
+![show-selected](https://github.com/zoccoler/napari-signal-selector/raw/main/images/show_selected.gif)
 
 ### Annotation Tool
 
 Once one or multiple signals are selected, you can annotate them with the annotation tool (brush with a 'plus' icon). You need to choose a signal class first.
 *Remember to right-click to remove previous selections when annotating different signal classes!*
 
-![annotation](./images/annotation.gif)
+![annotation](https://github.com/zoccoler/napari-signal-selector/raw/main/images/annotation.gif)
 
 Annotations are saved back in the table in a new column called 'Annotations'.
 *Currently multiple annotations is not possible, i.e., more than one class assigned to the same part of the signal.*
@@ -83,27 +83,27 @@ Annotations are saved back in the table in a new column called 'Annotations'.
 
 You can use the span-selection tool (bounded horizontal arrows icon) to sub-select one or multiple parts of signals. Right-click to unselect regions. Hold 'SHIFT' while dragging the mouse to select multiple sub-regions.
 
-![span-select](./images/span_select.gif)
+![span-select](https://github.com/zoccoler/napari-signal-selector/raw/main/images/span_select.gif)
 
 You can use this in conjunction with the annotation tool to have sub-regions from the same signal with different annotations.
 
-![](./images/span_annotation.gif)
+![](https://github.com/zoccoler/napari-signal-selector/raw/main/images/span_annotation.gif)
 
 ### Deletion Tool
 
 If you made a mistake, you can remove previous annotations by selecting signal(s) and clicking on the trash icon at the right of the toolbar (or just annotate them with class 0).
 
-![delete](./images/delete.gif)
+![delete](https://github.com/zoccoler/napari-signal-selector/raw/main/images/delete.gif)
 
 Also, with the selection tool enbaled, by holding 'SHIFT' and left-clicking, you can select all signals. This may be useful to delete all previous annotations.
 
-![select-delete-all](./images/select_delete_all.gif)
+![select-delete-all](https://github.com/zoccoler/napari-signal-selector/raw/main/images/select_delete_all.gif)
 
 ### Exporting Annotations
 
 The table with annotations can be displayed in napari using the 'Show table' widget from [napari-skimage-regionprops plugin](https://github.com/haesleinhuepf/napari-skimage-regionprops#napari-skimage-regionprops-nsr), which is available under `Tools > Measurements > Show Table (nsr)`.
 
-![](./images/table_view.gif)
+![](https://github.com/zoccoler/napari-signal-selector/raw/main/images/table_view.gif)
 
 By the way, with `'show selected'` checked, you can click on a label row in the table and see the corresponding label in the image **...and** in the plotter!
 
