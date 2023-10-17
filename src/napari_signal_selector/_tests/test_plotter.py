@@ -1,6 +1,6 @@
 from napari_signal_selector.interactive import InteractiveFeaturesLineWidget
 
-def test_make_flim_phasor_plot(make_napari_viewer):
+def test_plotter(make_napari_viewer):
     viewer = make_napari_viewer()
     plotter = InteractiveFeaturesLineWidget(viewer)
     
