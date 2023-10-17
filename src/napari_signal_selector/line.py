@@ -51,6 +51,15 @@ class LineBaseWidget(NapariMPLWidget):
             The label to display on the y axis
         """
         raise NotImplementedError
+    
+    def setCustomToolbar(self, toolbar):
+        layout = self.layout()
+        # Remove the current toolbar from the layout
+        layout.removeWidget(self.toolbar)
+        self.toolbar.deleteLater()  # Delete the old toolbar
+        # Add the new custom toolbar to the layout
+        layout.insertWidget(1, toolbar)
+        self.toolbar = toolbar
 
 
 class LineWidget(LineBaseWidget):

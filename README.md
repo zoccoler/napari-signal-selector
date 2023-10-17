@@ -7,29 +7,128 @@
 [![codecov](https://codecov.io/gh/zoccoler/napari-signal-selector/branch/main/graph/badge.svg)](https://codecov.io/gh/zoccoler/napari-signal-selector)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-signal-selector)](https://napari-hub.org/plugins/napari-signal-selector)
 
-An interactive signal selector for napari, based on napari-matplotlib.
+An interactive signal selector and annotator for napari, based on [napari-matplotlib](https://github.com/matplotlib/napari-matplotlib#napari-matplotlib).
+
+[Jump to Intallation](#installation)
 
 ----------------------------------
 
-This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookiecutter-napari-plugin] template.
+## Usage
 
-<!--
-Don't miss the full getting started guide to set up your new package:
-https://github.com/napari/cookiecutter-napari-plugin#getting-started
+This plugin opens an embedded plotter in napari capable of plotting and interacting (selecting/annotating) with individual object signals (typically temporal features).
 
-and review the napari docs for plugin developers:
-https://napari.org/stable/plugins/index.html
--->
+![plotting](./images/plotting.gif)
+
+### Input Data
+
+napari-signal-selector works with a [Labels layer](https://napari.org/stable/howtos/layers/labels.html) containing segmented objects and whose `features` attribute contains a table that follows the example structure shown below:
+
+| `label` | `frame` | `feature` | ...  |
+|-------|-------|---------|---|
+| 1     | 0     | 1.0     | ...  |
+| 2     | 0     | 1.0     | ...  |
+| 3     | 0     | 0.5     | ...  |
+| 4     | 0     | 0.5     | ...  |
+| 1     | 1     | 2.0     | ...  |
+| 2     | 1     | 1.0     | ...  |
+| 3     | 1     | 1.0     | ...  |
+| 4     | 1     | 1.0     | ...  |
+| 1     | 2     | 3.0     | ...  |
+| 2     | 2     | 1.0     | ...  |
+| 3     | 2     | 0.5     | ...  |
+| 4     | 2     | 1.5     | ...  |
+| ⋮     | ⋮     | ⋮     |   |
+
+Basically, it needs an object identifier (in this case, the `label` column) that matches the labels in the Labels layer, and other columns containing x- and y-axis numbers to plot. Typically, x-axis is some temporal-related property.
+
+Here is how one could add such a layer to a napari viewer via code (check [this example notebook](./examples/synthetic_example.ipynb) for more details):
+
+```python
+viewer.add_labels(labels_image, features = table)
+```
+
+If a layer like this is selected, you can choose what to plot by means of dropdown fields in the bottom of the plotter.
+
+Below is a basic example using the "Flashing Polygons" synthetic data:
+
+![intro](./images/intro.gif)
+
+## Tools
+
+### Selection Tool
+
+The selection tool (arrowhead icon) is a toggle button which enables you to select individual signals. Once activated, the icon gets highlighted and you can click over individual signals to select them. Right-clicking unselects everything.
+
+![select](./images/select.gif)
+
+If the region you want to click is too crowded, consider zooming in first and then selecting.
+
+![zoom-select](./images/zoom_select.gif)
+
+And if you know which label you want to select, you can enable `'show selected'` from the Labels layer options to solely display one label at a time. The Lables layer picker tool may help you get the right label.
+
+![show-selected](./images/show_selected.gif)
+
+### Annotation Tool
+
+Once one or multiple signals are selected, you can annotate them with the annotation tool (brush with a 'plus' icon). You need to choose a signal class first.
+*Remember to right-click to remove previous selections when annotating different signal classes!*
+
+![annotation](./images/annotation.gif)
+
+Annotations are saved back in the table in a new column called 'Annotations'.
+*Currently multiple annotations is not possible, i.e., more than one class assigned to the same part of the signal.*
+
+### Span-Selection Tool
+
+You can use the span-selection tool (bounded horizontal arrows icon) to sub-select one or multiple parts of signals. Right-click to unselect regions. Hold 'SHIFT' while dragging the mouse to select multiple sub-regions.
+
+![span-select](./images/span_select.gif)
+
+You can use this in conjunction with the annotation tool to have sub-regions from the same signal with different annotations.
+
+![](./images/span_annotation.gif)
+
+### Deletion Tool
+
+If you made a mistake, you can remove previous annotations by selecting signal(s) and clicking on the trash icon at the right of the toolbar (or just annotate them with class 0).
+
+![delete](./images/delete.gif)
+
+Also, with the selection tool enbaled, by holding 'SHIFT' and left-clicking, you can select all signals. This may be useful to delete all previous annotations.
+
+![select-delete-all](./images/select_delete_all.gif)
+
+### Exporting Annotations
+
+The table with annotations can be displayed in napari using the 'Show table' widget from [napari-skimage-regionprops plugin](https://github.com/haesleinhuepf/napari-skimage-regionprops#napari-skimage-regionprops-nsr), which is available under `Tools > Measurements > Show Table (nsr)`.
+
+![](./images/table_view.gif)
+
+By the way, with `'show selected'` checked, you can click on a label row in the table and see the corresponding label in the image **...and** in the plotter!
+
+To export the table, click on `'Save as csv...'`.
 
 ## Installation
 
-You can install `napari-signal-selector` via [pip]:
+You can install `napari-signal-selector` via [pip]. Follow these steps from a terminal.
+
+We recommend using `mamba-forge` whenever possible. Click [here](https://github.com/conda-forge/miniforge#mambaforge) to choose the right download option for your OS.
+**If you use `mamba-forge`, replace the `conda` term whenever you see it below with `mamba`.**
+
+Create a conda environment :
+
+    conda create -n napari-ss-env napari python=3.9
+    
+Activate the environment :
+
+    conda activate napari-ss-env
+
+Install `napari-signal-selector` via [pip] :
 
     pip install napari-signal-selector
 
-
-
-To install latest development version :
+Alternatively, install latest development version with :
 
     pip install git+https://github.com/zoccoler/napari-signal-selector.git
 

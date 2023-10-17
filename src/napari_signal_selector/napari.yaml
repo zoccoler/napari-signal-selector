@@ -2,16 +2,16 @@ name: napari-signal-selector
 display_name: Napari Signal Selector
 contributions:
   commands:
-    - id: napari-signal-selector.make_sample_data
-      python_name: napari_signal_selector._sample_data:make_sample_data
+    - id: napari-signal-selector.load_flashing_polygons_data
+      python_name: napari_signal_selector._sample_data:load_flashing_polygons_data
       title: Load sample data from Napari Signal Selector
     - id: napari-signal-selector.make_inter_features_line_widget
-      python_name: napari_signal_selector.line:InteractiveFeaturesLineWidget
+      python_name: napari_signal_selector.interactive:InteractiveFeaturesLineWidget
       title: Signal Selector
   sample_data:
-    - command: napari-signal-selector.make_sample_data
-      display_name: Napari Signal Selector
-      key: unique_id.1
+    - command: napari-signal-selector.load_flashing_polygons_data
+      display_name: Flashing Polygons (2D+t)
+      key: flashing_polygons
   widgets:
     - command: napari-signal-selector.make_inter_features_line_widget
       display_name: Signal Selector
