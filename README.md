@@ -118,7 +118,7 @@ We recommend using `mamba-forge` whenever possible. Click [here](https://github.
 
 Create a conda environment :
 
-    mamba create -n napari-ss-env napari python=3.9
+    mamba create -n napari-ss-env napari pyqt python=3.9
     
 Activate the environment :
 
