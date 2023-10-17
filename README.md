@@ -114,15 +114,15 @@ To export the table, click on `'Save as csv...'`.
 You can install `napari-signal-selector` via [pip]. Follow these steps from a terminal.
 
 We recommend using `mamba-forge` whenever possible. Click [here](https://github.com/conda-forge/miniforge#mambaforge) to choose the right download option for your OS.
-**If you use `mamba-forge`, replace the `conda` term whenever you see it below with `mamba`.**
+**If you do not use `mamba-forge`, replace the `mamba` term whenever you see it below with `conda`.**
 
 Create a conda environment :
 
-    conda create -n napari-ss-env napari python=3.9
+    mamba create -n napari-ss-env napari python=3.9
     
 Activate the environment :
 
-    conda activate napari-ss-env
+    mamba activate napari-ss-env
 
 Install `napari-signal-selector` via [pip] :
 
