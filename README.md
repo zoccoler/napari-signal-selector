@@ -6,6 +6,7 @@
 [![tests](https://github.com/zoccoler/napari-signal-selector/workflows/tests/badge.svg)](https://github.com/zoccoler/napari-signal-selector/actions)
 [![codecov](https://codecov.io/gh/zoccoler/napari-signal-selector/branch/main/graph/badge.svg)](https://codecov.io/gh/zoccoler/napari-signal-selector)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-signal-selector)](https://napari-hub.org/plugins/napari-signal-selector)
+[![DOI](https://zenodo.org/badge/661588266.svg)](https://zenodo.org/doi/10.5281/zenodo.10041219)
 
 An interactive signal selector and annotator for napari, based on [napari-matplotlib](https://github.com/matplotlib/napari-matplotlib#napari-matplotlib).
 
