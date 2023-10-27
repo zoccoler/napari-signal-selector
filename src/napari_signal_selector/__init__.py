@@ -1,4 +1,4 @@
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 from ._sample_data import load_flashing_polygons_data
 from .interactive import InteractiveFeaturesLineWidget
 

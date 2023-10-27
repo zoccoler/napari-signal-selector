@@ -943,5 +943,4 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             self.axes.set_xlabel(x_axis_name)
             self.axes.set_ylabel(y_axis_name)
             self.axes.autoscale(enable=True, axis='both', tight=True)
-            self.apply_napari_colorscheme(self.axes)
             self.canvas.draw()
