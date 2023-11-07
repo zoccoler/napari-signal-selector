@@ -8,6 +8,7 @@ from matplotlib.collections import LineCollection
 from matplotlib.colors import ListedColormap, Normalize
 from .line import FeaturesLineWidget
 from napari_matplotlib.base import NapariNavigationToolbar
+from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
 from napari_matplotlib.util import Interval
 from napari_signal_selector.utilities import get_custom_cat10based_cmap_list, generate_line_segments_array
 from matplotlib.widgets import SpanSelector
@@ -203,7 +204,7 @@ class QtColorBox(QWidget):
             self.color = tuple(color)
 
 
-class CustomNapariNavigationToolbar(NapariNavigationToolbar):
+class CustomNapariNavigationToolbar(NavigationToolbar2QT):
     """Custom Toolbar style for Napari."""
 
     def __init__(self, *args, **kwargs):  # type: ignore[no-untyped-def]
@@ -371,27 +372,32 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self.layout().insertLayout(2, signal_selection_box)
 
         # Create an instance of your custom toolbar
-        custom_toolbar = CustomNapariNavigationToolbar(self.canvas, parent=self)
+        self.selection_toolbar = CustomNapariNavigationToolbar(self.canvas, parent=self)
+        print([action.text() for action in self.selection_toolbar.actions()])
+        for action in self.selection_toolbar.actions()[:-1]:
+            self.selection_toolbar.removeAction(action)
         # Replace the default toolbar with the custom one
-        self.setCustomToolbar(custom_toolbar)
+        # self.setCustomToolbar(self.selection_toolbar)
         self._replace_toolbar_icons()
 
         # Add span selection button to toolbar
         select_icon_file_path = Path(ICON_ROOT / "select.png").__str__()
-        self.toolbar._add_new_button(
-            'select', "Enable or disable line selection", select_icon_file_path, "enable_selections", True)
+        self.selection_toolbar._add_new_button(
+            text='select', tooltip_text="Enable or disable line selection", icon_image_file_path=select_icon_file_path, callback_name="enable_selections", checkable=True, separator=False)
         # Add span selection button to toolbar
         span_select_icon_file_path = Path(ICON_ROOT / "span_select.png").__str__()
-        self.toolbar._add_new_button(
-            'span_select', "Enable or disable span selection", span_select_icon_file_path, "enable_span_selections", True)
+        self.selection_toolbar._add_new_button(
+            text='span_select', tooltip_text="Enable or disable span selection", icon_image_file_path=span_select_icon_file_path, callback_name="enable_span_selections", checkable=True, separator=True)
         # Insert the add_annotation
         add_annotation_icon_file_path = Path(ICON_ROOT / "add_annotation.png").__str__()
-        self.toolbar._add_new_button(
-            'add_annotation', "Add selected lines to current signal class", add_annotation_icon_file_path, "add_annotation", False)
+        self.selection_toolbar._add_new_button(
+            text='add_annotation', tooltip_text="Add selected lines to current signal class", icon_image_file_path=add_annotation_icon_file_path, callback_name="add_annotation", checkable=False, separator=False)
         # Insert the delete_annotation
         delete_annotation_icon_file_path = Path(ICON_ROOT / "delete_annotation.png").__str__()
-        self.toolbar._add_new_button(
-            'delete_annotation', "Delete selected lines class annotation", delete_annotation_icon_file_path, "remove_annotation", False)
+        self.selection_toolbar._add_new_button(
+            text='delete_annotation',tooltip_text= "Delete selected lines class annotation", icon_image_file_path=delete_annotation_icon_file_path, callback_name="remove_annotation", checkable=False, separator=False)
+
+        self.layout().insertWidget(2, self.selection_toolbar)
 
         # Create pick event connection id (used by line selector)
         self.pick_event_connection_id = None
@@ -485,14 +491,14 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         If enabled, span selector is disabled.
         """
         # Update toolbar buttons actions
-        if self.toolbar._actions['select'].isChecked():
+        if self.selection_toolbar._actions['select'].isChecked():
             self._enable_line_selector(True)
             # Disable span selector upon activation of line selector
-            self.toolbar._actions['span_select'].setChecked(False)
+            self.selection_toolbar._actions['span_select'].setChecked(False)
             self._enable_span_selector(False)
         else:
             self._enable_line_selector(False)
-        self.toolbar._update_buttons_checked()
+        self.selection_toolbar._update_buttons_checked()
 
     def _enable_line_selector(self, active=False):
         """
@@ -517,14 +523,14 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
 
         If enabled, line selector is disabled.
         """
-        if self.toolbar._actions['span_select'].isChecked():
+        if self.selection_toolbar._actions['span_select'].isChecked():
             self._enable_span_selector(True)
             # Disable line selector upon activation of span selector
-            self.toolbar._actions['select'].setChecked(False)
+            self.selection_toolbar._actions['select'].setChecked(False)
             self._enable_line_selector(False)
         else:
             self._enable_span_selector(False)
-        self.toolbar._update_buttons_checked()
+        self.selection_toolbar._update_buttons_checked()
 
     def _enable_span_selector(self, active=False):
         """
@@ -533,7 +539,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         If span selector was created, enable or disable it.
         """
         if self.span_selector is not None:
-            self.toolbar._update_buttons_checked()
+            self.selection_toolbar._update_buttons_checked()
             self.span_selector.active = active
 
     def _enable_mouse_clicks(self, active=False):
@@ -595,11 +601,11 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         modifiers = QGuiApplication.keyboardModifiers()
         if event.button == 3:
             # Right click clears selections if select tool is enabled
-            if self.toolbar._actions['select'].isChecked():
+            if self.selection_toolbar._actions['select'].isChecked():
                 self._on_span_select(0, 0)
                 self._clear_selections()
             # Right click resets span annotations if span selector is enabled
-            elif self.toolbar._actions['span_select'].isChecked():
+            elif self.selection_toolbar._actions['span_select'].isChecked():
                 self._on_span_select(0, 0)
             else:
                 # resets plot colors (in case predictions colors were set)
@@ -607,7 +613,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
 
         elif event.button == 1:
             # If left-click with select tool enabled and shift key pressed, select all lines
-            if self.toolbar._actions['select'].isChecked():
+            if self.selection_toolbar._actions['select'].isChecked():
                 if modifiers == Qt.ShiftModifier:
                     self._select_all_lines()
 
