@@ -204,6 +204,42 @@ class QtColorBox(QWidget):
             self.color = tuple(color)
 
 
+from qtpy.QtWidgets import QWidget, QVBoxLayout, QToolBar, QToolButton
+from qtpy.QtGui import QIcon
+
+class CustomToolbarWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        self.layout = QVBoxLayout(self)
+        self.toolbar = QToolBar()
+        self.layout.addWidget(self.toolbar)
+
+    def add_custom_button(self, name, tooltip, default_icon_path, callback, checkable=False, checked_icon_path=None):
+        # Load icon
+        default_icon = QIcon(default_icon_path)
+
+        # Create the button
+        button = QToolButton()
+        button.setIcon(default_icon)
+        button.setText(name)
+        button.setToolTip(tooltip)
+
+        # Set checkable state and handle checked state icon if applicable
+        if checkable:
+            button.setCheckable(True)
+            checked_icon = QIcon(checked_icon_path) if checked_icon_path else default_icon
+
+            def handle_button_toggle(checked):
+                button.setIcon(checked_icon if checked else default_icon)
+            button.toggled.connect(handle_button_toggle)
+
+        # Connect the button's signal to the provided callback
+        button.clicked.connect(lambda: callback(button))
+
+        self.toolbar.addWidget(button)
+
+
 class CustomNapariNavigationToolbar(NavigationToolbar2QT):
     """Custom Toolbar style for Napari."""
 
@@ -364,11 +400,18 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self.signal_class_color_spinbox.addWidget(self.colorBox)
         self.signal_class_color_spinbox.addWidget(self.signal_class_SpinBox)
         # Add stretch to the right to push buttons to the left
-        self.signal_class_color_spinbox.addStretch(1)
+        # self.signal_class_color_spinbox.addStretch(1)
 
         signal_selection_box = QHBoxLayout()
         signal_selection_box.addWidget(label)
         signal_selection_box.addLayout(self.signal_class_color_spinbox)
+        self.custom_toolbar = CustomToolbarWidget(self)
+        self.custom_toolbar.add_custom_button(name='select', tooltip="Enable or disable line selection", default_icon_path=Path(ICON_ROOT / "select.png").__str__(), callback=self.enable_selections_new, checkable=True, checked_icon_path=Path(ICON_ROOT / "select_checked.png").__str__())
+        self.custom_toolbar.add_custom_button(name='span_select', tooltip="Enable or disable span selection", default_icon_path=Path(ICON_ROOT / "span_select.png").__str__(), callback=self.enable_span_selections, checkable=True, checked_icon_path=Path(ICON_ROOT / "span_select_checked.png").__str__())
+        self.custom_toolbar.add_custom_button(name='add_annotation', tooltip="Add selected lines to current signal class", default_icon_path=Path(ICON_ROOT / "add_annotation.png").__str__(), callback=self.add_annotation, checkable=False)
+        self.custom_toolbar.add_custom_button(name='delete_annotation', tooltip="Delete selected lines class annotation", default_icon_path=Path(ICON_ROOT / "delete_annotation.png").__str__(), callback=self.remove_annotation, checkable=False)
+        signal_selection_box.addWidget(self.custom_toolbar)
+        signal_selection_box.addStretch(1)
         self.layout().insertLayout(2, signal_selection_box)
 
         # Create an instance of your custom toolbar
@@ -484,6 +527,21 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         """
         self._signal_class = value
         self.colorBox.update()
+
+    def enable_selections_new(self, checked):
+        """Enable or disable line selector.
+
+        If enabled, span selector is disabled.
+        """
+        # Update toolbar buttons actions
+        if checked:
+            self._enable_line_selector(True)
+            # Disable span selector upon activation of line selector
+            # self.selection_toolbar._actions['span_select'].setChecked(False)
+            self._enable_span_selector(False)
+        else:
+            self._enable_line_selector(False)
+        # self.selection_toolbar._update_buttons_checked()
 
     def enable_selections(self):
         """Enable or disable line selector.
