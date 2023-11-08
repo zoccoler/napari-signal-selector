@@ -403,44 +403,46 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         # self.signal_class_color_spinbox.addStretch(1)
 
         signal_selection_box = QHBoxLayout()
-        signal_selection_box.addWidget(label)
-        signal_selection_box.addLayout(self.signal_class_color_spinbox)
+
+        
         self.custom_toolbar = CustomToolbarWidget(self)
         self.custom_toolbar.add_custom_button(name='select', tooltip="Enable or disable line selection", default_icon_path=Path(ICON_ROOT / "select.png").__str__(), callback=self.enable_selections_new, checkable=True, checked_icon_path=Path(ICON_ROOT / "select_checked.png").__str__())
         self.custom_toolbar.add_custom_button(name='span_select', tooltip="Enable or disable span selection", default_icon_path=Path(ICON_ROOT / "span_select.png").__str__(), callback=self.enable_span_selections, checkable=True, checked_icon_path=Path(ICON_ROOT / "span_select_checked.png").__str__())
         self.custom_toolbar.add_custom_button(name='add_annotation', tooltip="Add selected lines to current signal class", default_icon_path=Path(ICON_ROOT / "add_annotation.png").__str__(), callback=self.add_annotation, checkable=False)
         self.custom_toolbar.add_custom_button(name='delete_annotation', tooltip="Delete selected lines class annotation", default_icon_path=Path(ICON_ROOT / "delete_annotation.png").__str__(), callback=self.remove_annotation, checkable=False)
         signal_selection_box.addWidget(self.custom_toolbar)
+        signal_selection_box.addWidget(label)
+        signal_selection_box.addLayout(self.signal_class_color_spinbox)
         signal_selection_box.addStretch(1)
         self.layout().insertLayout(2, signal_selection_box)
 
-        # Create an instance of your custom toolbar
-        self.selection_toolbar = CustomNapariNavigationToolbar(self.canvas, parent=self)
-        print([action.text() for action in self.selection_toolbar.actions()])
-        for action in self.selection_toolbar.actions()[:-1]:
-            self.selection_toolbar.removeAction(action)
-        # Replace the default toolbar with the custom one
-        # self.setCustomToolbar(self.selection_toolbar)
-        self._replace_toolbar_icons()
+        # # Create an instance of your custom toolbar
+        # self.selection_toolbar = CustomNapariNavigationToolbar(self.canvas, parent=self)
+        # print([action.text() for action in self.selection_toolbar.actions()])
+        # for action in self.selection_toolbar.actions()[:-1]:
+        #     self.selection_toolbar.removeAction(action)
+        # # Replace the default toolbar with the custom one
+        # # self.setCustomToolbar(self.selection_toolbar)
+        # self._replace_toolbar_icons()
 
-        # Add span selection button to toolbar
-        select_icon_file_path = Path(ICON_ROOT / "select.png").__str__()
-        self.selection_toolbar._add_new_button(
-            text='select', tooltip_text="Enable or disable line selection", icon_image_file_path=select_icon_file_path, callback_name="enable_selections", checkable=True, separator=False)
-        # Add span selection button to toolbar
-        span_select_icon_file_path = Path(ICON_ROOT / "span_select.png").__str__()
-        self.selection_toolbar._add_new_button(
-            text='span_select', tooltip_text="Enable or disable span selection", icon_image_file_path=span_select_icon_file_path, callback_name="enable_span_selections", checkable=True, separator=True)
-        # Insert the add_annotation
-        add_annotation_icon_file_path = Path(ICON_ROOT / "add_annotation.png").__str__()
-        self.selection_toolbar._add_new_button(
-            text='add_annotation', tooltip_text="Add selected lines to current signal class", icon_image_file_path=add_annotation_icon_file_path, callback_name="add_annotation", checkable=False, separator=False)
-        # Insert the delete_annotation
-        delete_annotation_icon_file_path = Path(ICON_ROOT / "delete_annotation.png").__str__()
-        self.selection_toolbar._add_new_button(
-            text='delete_annotation',tooltip_text= "Delete selected lines class annotation", icon_image_file_path=delete_annotation_icon_file_path, callback_name="remove_annotation", checkable=False, separator=False)
+        # # Add span selection button to toolbar
+        # select_icon_file_path = Path(ICON_ROOT / "select.png").__str__()
+        # self.selection_toolbar._add_new_button(
+        #     text='select', tooltip_text="Enable or disable line selection", icon_image_file_path=select_icon_file_path, callback_name="enable_selections", checkable=True, separator=False)
+        # # Add span selection button to toolbar
+        # span_select_icon_file_path = Path(ICON_ROOT / "span_select.png").__str__()
+        # self.selection_toolbar._add_new_button(
+        #     text='span_select', tooltip_text="Enable or disable span selection", icon_image_file_path=span_select_icon_file_path, callback_name="enable_span_selections", checkable=True, separator=True)
+        # # Insert the add_annotation
+        # add_annotation_icon_file_path = Path(ICON_ROOT / "add_annotation.png").__str__()
+        # self.selection_toolbar._add_new_button(
+        #     text='add_annotation', tooltip_text="Add selected lines to current signal class", icon_image_file_path=add_annotation_icon_file_path, callback_name="add_annotation", checkable=False, separator=False)
+        # # Insert the delete_annotation
+        # delete_annotation_icon_file_path = Path(ICON_ROOT / "delete_annotation.png").__str__()
+        # self.selection_toolbar._add_new_button(
+        #     text='delete_annotation',tooltip_text= "Delete selected lines class annotation", icon_image_file_path=delete_annotation_icon_file_path, callback_name="remove_annotation", checkable=False, separator=False)
 
-        self.layout().insertWidget(2, self.selection_toolbar)
+        # self.layout().insertWidget(2, self.selection_toolbar)
 
         # Create pick event connection id (used by line selector)
         self.pick_event_connection_id = None
@@ -847,9 +849,16 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             # gets the data and then plots the data
             x, y, x_axis_name, y_axis_name = self._get_data()
 
-            update_lines = True
-            if len(self._lines) == 0:
-                update_lines = False
+            update_lines = False
+            if len(self._lines) > 0: # Check if lines were already created
+                # if axes is None, it means axes were cleared, so update lines
+                # if axes is the same as current axes, update lines
+                if self._lines[0].axes is None or self._lines[0].axes == self.axes: 
+                    update_lines = True
+                # if axes is different from current axes, clear lines because widget was closed
+                else:
+                    # Clear lines because widget was closed
+                    self._lines = []
 
             for j, (signal_x, signal_y) in enumerate(zip(x, y)):
                 if self.layers[0].show_selected_label and j != self.layers[0].selected_label - 1:
@@ -858,7 +867,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
 
                 if update_lines:
                     line = self._lines[j]
-                    # Update line axes with current axes (in case axes were cleared)
+                    # Update line axes with current axes (in case axes were cleared when changing selected layer for example)
                     line.axes = self.axes
                     line.set_data(signal_x, signal_y)
                 else:
