@@ -440,6 +440,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                 self.pick_event_connection_id = self.canvas.figure.canvas.mpl_connect(
                     'pick_event', self._on_pick)
         else:
+            # TODO: Lines seem to be still selectable after disabling line selector
             if self.pick_event_connection_id is not None:
                 self.canvas.figure.canvas.mpl_disconnect(
                     self.pick_event_connection_id)
