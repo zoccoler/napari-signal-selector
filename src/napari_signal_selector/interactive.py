@@ -11,16 +11,17 @@ from .line import FeaturesLineWidget
 from napari_matplotlib.base import NapariNavigationToolbar
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
 from napari_matplotlib.util import Interval
-from napari_signal_selector.utilities import get_custom_cat10based_cmap_list, generate_line_segments_array
+from napari_signal_selector.utilities import generate_line_segments_array
 from matplotlib.widgets import SpanSelector
 from qtpy.QtWidgets import QWidget, QSpinBox, QLabel, QHBoxLayout
-from qtpy.QtCore import Qt
-from qtpy.QtGui import QGuiApplication, QColor, QPainter
+from qtpy.QtCore import Qt, QSize, QRect
+from qtpy.QtGui import QGuiApplication, QColor, QPainter, QPixmap
 
 from qtpy.QtWidgets import QLabel, QWidget, QSizePolicy
 from qtpy.QtGui import QIcon
 import os
 from napari_matplotlib.util import Interval, from_napari_css_get_size_of
+from nap_plot_tools import CustomToolbarWidget, QtColorSpinBox, get_custom_cat10based_cmap_list
 
 __all__ = ["InteractiveFeaturesLineWidget"]
 ICON_ROOT = Path(__file__).parent / "icons"
@@ -158,103 +159,6 @@ class InteractiveLine2D(Line2D):
             self._axes.add_artist(self._annotations_scatter)
             self._axes.add_collection(self._predictions_linecollection)
 
-
-class QtColorBox(QWidget):
-    """A widget that shows a square with the current signal class color.
-    """
-    cmap = get_custom_cat10based_cmap_list()
-
-    def __init__(self) -> None:
-        super().__init__()
-        # TODO: Check why this may be necessary
-        # self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-
-        self._height = 24
-        self.setFixedWidth(self._height)
-        self.setFixedHeight(self._height)
-        self.setToolTip(('Selected signal class color'))
-
-        self.color = None
-
-    def paintEvent(self, event):
-        """Paint the colorbox.  If no color, display a checkerboard pattern.
-
-        Parameters
-        ----------
-        event : qtpy.QtCore.QEvent
-            Event from the Qt context.
-        """
-        painter = QPainter(self)
-        signal_class = self.parent()._signal_class
-        if signal_class == 0:
-            self.color = None
-            for i in range(self._height // 4):
-                for j in range(self._height // 4):
-                    if (i % 2 == 0 and j % 2 == 0) or (
-                        i % 2 == 1 and j % 2 == 1
-                    ):
-                        painter.setPen(QColor(230, 230, 230))
-                        painter.setBrush(QColor(230, 230, 230))
-                    else:
-                        painter.setPen(QColor(25, 25, 25))
-                        painter.setBrush(QColor(25, 25, 25))
-                    painter.drawRect(i * 4, j * 4, 5, 5)
-        else:
-            color = np.round(
-                255 * np.asarray(self.cmap[signal_class])).astype(int)
-            painter.setPen(QColor(*list(color)))
-            painter.setBrush(QColor(*list(color)))
-            painter.drawRect(0, 0, self._height, self._height)
-            self.color = tuple(color)
-
-
-class CustomToolbarWidget(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
-        self.layout = QVBoxLayout(self)
-        self.toolbar = QToolBar()
-        self.layout.addWidget(self.toolbar)
-
-        self.buttons = {}
-
-    def add_custom_button(self, name, tooltip, default_icon_path, callback, checkable=False, checked_icon_path=None):
-        # Load icon
-        default_icon = QIcon(default_icon_path)
-        # Create button
-        button = QToolButton()
-        button.setIcon(default_icon)
-        button.setText(name)
-        button.setToolTip(tooltip)
-
-        # Set checkable state and handle checked state icon if applicable
-        if checkable:
-            button.setCheckable(True)
-            checked_icon = QIcon(
-                checked_icon_path) if checked_icon_path else default_icon
-
-            def handle_button_toggle(checked):
-                button.setIcon(checked_icon if checked else default_icon)
-            button.toggled.connect(handle_button_toggle)
-
-            # Connect the button's signal to the provided callback
-            button.clicked.connect(lambda: callback(button))
-        else:
-            button.clicked.connect(lambda: callback())
-
-        self.toolbar.addWidget(button)
-        self.buttons[name] = button
-
-    def get_button_state(self, name):
-        # Return the checked state of the button
-        return self.buttons[name].isChecked() if name in self.buttons else None
-
-    def set_button_state(self, name, state):
-        # Set the checked state of the button
-        if name in self.buttons and self.buttons[name].isCheckable():
-            self.buttons[name].setChecked(state)
-
-
 class InteractiveFeaturesLineWidget(FeaturesLineWidget):
     """InteractiveFeaturesLineWidget class.
 
@@ -287,23 +191,17 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         # Set object name
         self.setObjectName('InteractiveFeaturesLineWidget')
 
-        ### ColorBox and SpinBox ###
-        self.colorBox = QtColorBox()
-        self.signal_class_SpinBox = QSpinBox()
-        self.signal_class_SpinBox.setToolTip(
+        ### ColorSpinBox ###
+        self.signal_class_color_spinbox = QtColorSpinBox()
+        self.signal_class_color_spinbox.setToolTip(
             ('signal class number to annotate'))
-        self.signal_class_SpinBox.setMinimum(0)
-        self.signal_class_SpinBox.setSingleStep(1)
-        self.signal_class_SpinBox.valueChanged.connect(
+        # Set callback
+        self.signal_class_color_spinbox.connect(
             self._change_signal_class)
-        self.signal_class_SpinBox.setMaximumWidth(50)
-        ### Color Spinbox layout ###
-        self.signal_class_color_spinbox_layout = QHBoxLayout()
-        self.signal_class_color_spinbox_layout.addWidget(self.colorBox)
-        self.signal_class_color_spinbox_layout.addWidget(
-            self.signal_class_SpinBox)
+        
         ### Custom toolbar ###
         self.custom_toolbar = CustomToolbarWidget(self)
+        ### Add toolbuttons to toolbar ###
         self.custom_toolbar.add_custom_button(name='select', tooltip="Enable or disable line selection", default_icon_path=Path(
             ICON_ROOT / "select.png").__str__(), callback=self.enable_line_selections, checkable=True, checked_icon_path=Path(ICON_ROOT / "select_checked.png").__str__())
         self.custom_toolbar.add_custom_button(name='span_select', tooltip="Enable or disable span selection", default_icon_path=Path(
@@ -317,11 +215,35 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self.signal_selection_tools_layout = QHBoxLayout()
         self.signal_selection_tools_layout.addWidget(self.custom_toolbar)
         self.signal_selection_tools_layout.addWidget(QLabel('Signal class:'))
-        self.signal_selection_tools_layout.addLayout(
-            self.signal_class_color_spinbox_layout)
+        self.signal_selection_tools_layout.addWidget(
+            self.signal_class_color_spinbox)
+        # self.signal_selection_tools_layout.addLayout(
+        #     self.signal_class_color_spinbox_layout)
         # Add stretch to the right to push buttons to the left
         self.signal_selection_tools_layout.addStretch(1)
+        # Set the left margin to 0 (or your desired value)
+        # self.signal_selection_tools_layout.setContentsMargins(0, self.signal_selection_tools_layout.contentsMargins().top(), 
+        #                                    self.signal_selection_tools_layout.contentsMargins().right(), 
+        #                                    self.signal_selection_tools_layout.contentsMargins().bottom())
+        self.signal_selection_tools_layout.setContentsMargins(0,0,0,0)
+
+        # Optionally, set spacing if needed
+        self.signal_selection_tools_layout.setSpacing(0)
+        # # Debug stylesheet
+        # self.setStyleSheet("""
+        #     QWidget {
+        #         background-color: yellow; /* Highlight the background */
+        #     }
+        #     QHBoxLayout {
+        #         border: 2px solid red; /* Red border for layout */
+        #     }
+        #     CustomToolbarWidget {
+        #         background-color: lightblue; /* Blue background for custom toolbar */
+        #     }
+        # """)
+
         self.layout().insertLayout(2, self.signal_selection_tools_layout)
+        self.layout().setContentsMargins(0, 0, 0, 0)
 
         # Create pick event connection id (used by line selector)
         self.pick_event_connection_id = None
@@ -358,7 +280,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
 
     def on_dims_slider_change(self) -> None:
         pass
-        # TO DO: update vertical line over plot (consider multithreading for performance, check details here:
+        # TODO: update vertical line over plot (consider multithreading for performance, check details here:
         #  - https://napari.org/dev/guides/threading.html#multithreading-in-napari)
         # if self.viewer.dims.ndim > 2:
         #     current_time_point = self.viewer.dims.current_step[0]
@@ -411,7 +333,8 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             New signal class value.
         """
         self._signal_class = value
-        self.colorBox.update()
+        self.signal_class_color_spinbox.value = value
+        # self.colorBox.update()
 
     def enable_line_selections(self, checked):
         """Enable or disable line selector.
