@@ -1,4 +1,4 @@
-from qtpy.QtWidgets import QWidget, QVBoxLayout, QToolBar, QToolButton
+from qtpy.QtWidgets import QWidget
 from typing import Optional, Tuple, Any
 import napari
 import numpy as np
@@ -8,19 +8,16 @@ from matplotlib.lines import Line2D
 from matplotlib.collections import LineCollection
 from matplotlib.colors import ListedColormap, Normalize
 from .line import FeaturesLineWidget
-from napari_matplotlib.base import NapariNavigationToolbar
-from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
+
 from napari_matplotlib.util import Interval
 from napari_signal_selector.utilities import generate_line_segments_array
 from matplotlib.widgets import SpanSelector
-from qtpy.QtWidgets import QWidget, QSpinBox, QLabel, QHBoxLayout
-from qtpy.QtCore import Qt, QSize, QRect
-from qtpy.QtGui import QGuiApplication, QColor, QPainter, QPixmap
+from qtpy.QtWidgets import QWidget, QLabel, QHBoxLayout
+from qtpy.QtCore import Qt
+from qtpy.QtGui import QGuiApplication
 
-from qtpy.QtWidgets import QLabel, QWidget, QSizePolicy
-from qtpy.QtGui import QIcon
-import os
-from napari_matplotlib.util import Interval, from_napari_css_get_size_of
+from qtpy.QtWidgets import QLabel, QWidget
+from napari_matplotlib.util import Interval
 from nap_plot_tools import CustomToolbarWidget, QtColorSpinBox, get_custom_cat10based_cmap_list
 
 __all__ = ["InteractiveFeaturesLineWidget"]
