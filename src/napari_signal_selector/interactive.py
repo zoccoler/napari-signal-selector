@@ -1,3 +1,4 @@
+from qtpy.QtWidgets import QWidget
 from typing import Optional, Tuple, Any
 import napari
 import numpy as np
@@ -7,18 +8,17 @@ from matplotlib.lines import Line2D
 from matplotlib.collections import LineCollection
 from matplotlib.colors import ListedColormap, Normalize
 from .line import FeaturesLineWidget
-from napari_matplotlib.base import NapariNavigationToolbar
-from napari_matplotlib.util import Interval
-from napari_signal_selector.utilities import get_custom_cat10based_cmap_list, generate_line_segments_array
-from matplotlib.widgets import SpanSelector
-from qtpy.QtWidgets import QWidget, QSpinBox, QLabel, QHBoxLayout
-from qtpy.QtCore import Qt
-from qtpy.QtGui import QGuiApplication, QColor, QPainter
 
-from qtpy.QtWidgets import QLabel, QWidget, QSizePolicy
-from qtpy.QtGui import QIcon
-import os
-from napari_matplotlib.util import Interval, from_napari_css_get_size_of
+from napari_matplotlib.util import Interval
+from napari_signal_selector.utilities import generate_line_segments_array
+from matplotlib.widgets import SpanSelector
+from qtpy.QtWidgets import QWidget, QLabel, QHBoxLayout
+from qtpy.QtCore import Qt
+from qtpy.QtGui import QGuiApplication
+
+from qtpy.QtWidgets import QLabel, QWidget
+from napari_matplotlib.util import Interval
+from nap_plot_tools import CustomToolbarWidget, QtColorSpinBox, get_custom_cat10based_cmap_list
 
 __all__ = ["InteractiveFeaturesLineWidget"]
 ICON_ROOT = Path(__file__).parent / "icons"
@@ -66,15 +66,16 @@ class InteractiveLine2D(Line2D):
                 marker='x', s=self._default_marker_size*4, zorder=3)
             segments = generate_line_segments_array(xdata, ydata)
             # Repeat predictions for interpolated segments (except first and last ones)
-            predictions_with_interpolation = np.repeat(self._predictions, 2)[1:-1]
+            predictions_with_interpolation = np.repeat(
+                self._predictions, 2)[1:-1]
             # Create line collection for predictions
             self._predictions_linecollection = LineCollection(segments, cmap=self.mpl_cmap, norm=self.normalizer,
                                                               zorder=4)
-            self._predictions_linecollection.set_array(predictions_with_interpolation)
+            self._predictions_linecollection.set_array(
+                predictions_with_interpolation)
         else:
             self._annotations_scatter = None
             self._predictions_linecollection = None
-
 
     @property
     def selected(self):
@@ -114,7 +115,8 @@ class InteractiveLine2D(Line2D):
         # Repeat predictions for interpolated segments (except first and last ones)
         predictions_with_interpolation = np.repeat(self._predictions, 2)[1:-1]
         # Update line collection plot array with predictions
-        self._predictions_linecollection.set_array(predictions_with_interpolation)
+        self._predictions_linecollection.set_array(
+            predictions_with_interpolation)
         self._canvas.draw_idle()
 
     @property
@@ -154,167 +156,6 @@ class InteractiveLine2D(Line2D):
             self._axes.add_artist(self._annotations_scatter)
             self._axes.add_collection(self._predictions_linecollection)
 
-
-class QtColorBox(QWidget):
-    """A widget that shows a square with the current signal class color.
-    """
-    cmap = get_custom_cat10based_cmap_list()
-
-    def __init__(self) -> None:
-        super().__init__()
-        # TODO: Check why this may be necessary
-        # self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
-
-        self._height = 24
-        self.setFixedWidth(self._height)
-        self.setFixedHeight(self._height)
-        self.setToolTip(('Selected signal class color'))
-
-        self.color = None
-
-    def paintEvent(self, event):
-        """Paint the colorbox.  If no color, display a checkerboard pattern.
-
-        Parameters
-        ----------
-        event : qtpy.QtCore.QEvent
-            Event from the Qt context.
-        """
-        painter = QPainter(self)
-        signal_class = self.parent()._signal_class
-        if signal_class == 0:
-            self.color = None
-            for i in range(self._height // 4):
-                for j in range(self._height // 4):
-                    if (i % 2 == 0 and j % 2 == 0) or (
-                        i % 2 == 1 and j % 2 == 1
-                    ):
-                        painter.setPen(QColor(230, 230, 230))
-                        painter.setBrush(QColor(230, 230, 230))
-                    else:
-                        painter.setPen(QColor(25, 25, 25))
-                        painter.setBrush(QColor(25, 25, 25))
-                    painter.drawRect(i * 4, j * 4, 5, 5)
-        else:
-            color = np.round(255 * np.asarray(self.cmap[signal_class])).astype(int)
-            painter.setPen(QColor(*list(color)))
-            painter.setBrush(QColor(*list(color)))
-            painter.drawRect(0, 0, self._height, self._height)
-            self.color = tuple(color)
-
-
-class CustomNapariNavigationToolbar(NapariNavigationToolbar):
-    """Custom Toolbar style for Napari."""
-
-    def __init__(self, *args, **kwargs):  # type: ignore[no-untyped-def]
-        super().__init__(*args, **kwargs)
-        self.setIconSize(
-            from_napari_css_get_size_of(
-                "QtViewerPushButton", fallback=(28, 28)
-            )
-        )
-        self.tb_canvas = self.canvas
-        self.tb_parent = kwargs['parent']
-        self.tb_coordinates = self.coordinates
-        self.extra_button_paths = []
-
-    def _add_new_button(self, text, tooltip_text, icon_image_file_path, callback_name, checkable=False, separator=True):
-        """Add a new buttons to the toolbar.
-
-        Parameters
-        ----------
-        text : str
-            the text representing the name of the button
-        tooltip_text : str
-            the tooltip text exhibited when cursor hovers over button
-        icon_image_file_path : str
-            path to the "png" file containing the button image
-        callback_name : function
-            function to be called when button is clicked
-        separator: bool
-            Whether to add a separator before new button
-        checkable: bool
-            flag that indicates if button should or not be chackable
-        """        
-        self.extra_button_paths.append(icon_image_file_path)
-        self.toolitems.append((text, tooltip_text, icon_image_file_path, callback_name))
-        # Get last widget (A QLabel spacer)
-        n_widgets = self.layout().count() # get number of widgets
-        myWidget = self.layout().itemAt(n_widgets-1).widget() # get last widget
-        # Remove last widget (the spacer)
-        self.layout().removeWidget(myWidget)
-        myWidget.deleteLater()
-        if separator:
-            # Add a separator
-            self.addSeparator()
-        # Add custom button (addAction from QToolBar)
-        # https://doc.qt.io/qtforpython-5/PySide2/QtWidgets/QToolBar.html#PySide2.QtWidgets.PySide2.QtWidgets.QToolBar.addAction
-        a = self.addAction(QIcon(icon_image_file_path), text, getattr(self.tb_parent, callback_name))
-        self._actions[text] = a
-        if checkable:
-            a.setCheckable(True)
-        if tooltip_text is not None:
-            a.setToolTip(tooltip_text)
-       
-        ## Rebuild spacer at the very end of toolbar (re-create 'locLabel' created by __init__ from NavigationToolbar2QT)
-        # https://github.com/matplotlib/matplotlib/blob/85d7bb370186f2fa86df6ecc3d5cd064eb7f0b45/lib/matplotlib/backends/backend_qt.py#L631
-        if self.tb_coordinates:
-            self.locLabel = QLabel("", self)
-            self.locLabel.setAlignment(
-                Qt.AlignRight | Qt.AlignVCenter)
-            self.locLabel.setSizePolicy(
-                QSizePolicy.Expanding,
-                QSizePolicy.Ignored,
-            )
-            labelAction = self.addWidget(self.locLabel)
-            labelAction.setVisible(True)      
-
-    def _update_buttons_checked(self) -> None:
-        """Update toggle tool icons when selected/unselected."""
-        super()._update_buttons_checked()
-        icon_dir = self.parentWidget()._get_path_to_icon()
-
-        # changes pan/zoom icons depending on state (checked or not)
-        if "pan" in self._actions:
-            if self._actions["pan"].isChecked():
-                self._actions["pan"].setIcon(
-                    QIcon(os.path.join(icon_dir, "Pan_checked.png"))
-                )
-            else:
-                self._actions["pan"].setIcon(
-                    QIcon(os.path.join(icon_dir, "Pan.png"))
-                )
-        if "zoom" in self._actions:
-            if self._actions["zoom"].isChecked():
-                self._actions["zoom"].setIcon(
-                    QIcon(os.path.join(icon_dir, "Zoom_checked.png"))
-                )
-            else:
-                self._actions["zoom"].setIcon(
-                    QIcon(os.path.join(icon_dir, "Zoom.png"))
-                )
-        # If new button added and checkable, update state and icon
-        if len(self.extra_button_paths)>0:
-            for p in self.extra_button_paths:
-                path = Path(p)
-                extra_button_name = path.stem
-                extra_button_dir = path.parent
-                if extra_button_name in self._actions:
-                    if self._actions[extra_button_name].isChecked():
-                        # Button was checked, update icon to checked
-                        self._actions[extra_button_name].setIcon(
-                            QIcon(os.path.join(extra_button_dir, extra_button_name + "_checked.png"))
-                            )
-                        self._actions[extra_button_name].setChecked(True)
-                        
-                    else:
-                        # Button unchecked
-                        self._actions[extra_button_name].setIcon(
-                            QIcon(os.path.join(extra_button_dir, extra_button_name + ".png"))
-                            )
-                        self._actions[extra_button_name].setChecked(False)
-
-
 class InteractiveFeaturesLineWidget(FeaturesLineWidget):
     """InteractiveFeaturesLineWidget class.
 
@@ -346,52 +187,60 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         super().__init__(napari_viewer, parent=parent)
         # Set object name
         self.setObjectName('InteractiveFeaturesLineWidget')
-        # Create signal class Label text
-        label = QLabel('Signal class:')
 
-        # Create signal class color spinbox
-        self.colorBox = QtColorBox()
-        signal_class_sb = QSpinBox()
-        self.signal_class_SpinBox = signal_class_sb
-        self.signal_class_SpinBox.setToolTip(('signal class number to annotate'))
-        self.signal_class_SpinBox.setMinimum(0)
-        self.signal_class_SpinBox.setSingleStep(1)
-        self.signal_class_SpinBox.valueChanged.connect(self._change_signal_class)
-        # Limit max width of spinbox
-        self.signal_class_SpinBox.setMaximumWidth(50)
-        self.signal_class_color_spinbox = QHBoxLayout()
-        self.signal_class_color_spinbox.addWidget(self.colorBox)
-        self.signal_class_color_spinbox.addWidget(self.signal_class_SpinBox)
+        ### ColorSpinBox ###
+        self.signal_class_color_spinbox = QtColorSpinBox()
+        self.signal_class_color_spinbox.setToolTip(
+            ('signal class number to annotate'))
+        # Set callback
+        self.signal_class_color_spinbox.connect(
+            self._change_signal_class)
+        
+        ### Custom toolbar ###
+        self.custom_toolbar = CustomToolbarWidget(self)
+        ### Add toolbuttons to toolbar ###
+        self.custom_toolbar.add_custom_button(name='select', tooltip="Enable or disable line selection", default_icon_path=Path(
+            ICON_ROOT / "select.png").__str__(), callback=self.enable_line_selections, checkable=True, checked_icon_path=Path(ICON_ROOT / "select_checked.png").__str__())
+        self.custom_toolbar.add_custom_button(name='span_select', tooltip="Enable or disable span selection", default_icon_path=Path(
+            ICON_ROOT / "span_select.png").__str__(), callback=self.enable_span_selections, checkable=True, checked_icon_path=Path(ICON_ROOT / "span_select_checked.png").__str__())
+        self.custom_toolbar.add_custom_button(name='add_annotation', tooltip="Add selected lines to current signal class", default_icon_path=Path(
+            ICON_ROOT / "add_annotation.png").__str__(), callback=self.add_annotation, checkable=False)
+        self.custom_toolbar.add_custom_button(name='delete_annotation', tooltip="Delete selected lines class annotation", default_icon_path=Path(
+            ICON_ROOT / "delete_annotation.png").__str__(), callback=self.remove_annotation, checkable=False)
+
+        ## Signal Selection Tools ##
+        self.signal_selection_tools_layout = QHBoxLayout()
+        self.signal_selection_tools_layout.addWidget(self.custom_toolbar)
+        self.signal_selection_tools_layout.addWidget(QLabel('Signal class:'))
+        self.signal_selection_tools_layout.addWidget(
+            self.signal_class_color_spinbox)
+        # self.signal_selection_tools_layout.addLayout(
+        #     self.signal_class_color_spinbox_layout)
         # Add stretch to the right to push buttons to the left
-        self.signal_class_color_spinbox.addStretch(1)
+        self.signal_selection_tools_layout.addStretch(1)
+        # Set the left margin to 0 (or your desired value)
+        # self.signal_selection_tools_layout.setContentsMargins(0, self.signal_selection_tools_layout.contentsMargins().top(), 
+        #                                    self.signal_selection_tools_layout.contentsMargins().right(), 
+        #                                    self.signal_selection_tools_layout.contentsMargins().bottom())
+        self.signal_selection_tools_layout.setContentsMargins(0,0,0,0)
 
-        signal_selection_box = QHBoxLayout()
-        signal_selection_box.addWidget(label)
-        signal_selection_box.addLayout(self.signal_class_color_spinbox)
-        self.layout().insertLayout(2, signal_selection_box)
+        # Optionally, set spacing if needed
+        self.signal_selection_tools_layout.setSpacing(0)
+        # # Debug stylesheet
+        # self.setStyleSheet("""
+        #     QWidget {
+        #         background-color: yellow; /* Highlight the background */
+        #     }
+        #     QHBoxLayout {
+        #         border: 2px solid red; /* Red border for layout */
+        #     }
+        #     CustomToolbarWidget {
+        #         background-color: lightblue; /* Blue background for custom toolbar */
+        #     }
+        # """)
 
-        # Create an instance of your custom toolbar
-        custom_toolbar = CustomNapariNavigationToolbar(self.canvas, parent=self)
-        # Replace the default toolbar with the custom one
-        self.setCustomToolbar(custom_toolbar)
-        self._replace_toolbar_icons()
-
-        # Add span selection button to toolbar
-        select_icon_file_path = Path(ICON_ROOT / "select.png").__str__()
-        self.toolbar._add_new_button(
-            'select', "Enable or disable line selection", select_icon_file_path, "enable_selections", True)
-        # Add span selection button to toolbar
-        span_select_icon_file_path = Path(ICON_ROOT / "span_select.png").__str__()
-        self.toolbar._add_new_button(
-            'span_select', "Enable or disable span selection", span_select_icon_file_path, "enable_span_selections", True)
-        # Insert the add_annotation
-        add_annotation_icon_file_path = Path(ICON_ROOT / "add_annotation.png").__str__()
-        self.toolbar._add_new_button(
-            'add_annotation', "Add selected lines to current signal class", add_annotation_icon_file_path, "add_annotation", False)
-        # Insert the delete_annotation
-        delete_annotation_icon_file_path = Path(ICON_ROOT / "delete_annotation.png").__str__()
-        self.toolbar._add_new_button(
-            'delete_annotation', "Delete selected lines class annotation", delete_annotation_icon_file_path, "remove_annotation", False)
+        self.layout().insertLayout(2, self.signal_selection_tools_layout)
+        self.layout().setContentsMargins(0, 0, 0, 0)
 
         # Create pick event connection id (used by line selector)
         self.pick_event_connection_id = None
@@ -404,7 +253,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
 
         # Create horizontal Span Selector
         self.span_selector = SpanSelector(ax=self.axes,
-                                          onselect=self._on_span_select,
+                                          onselect=self._on_span,
                                           direction="horizontal",
                                           useblit=True,
                                           props=dict(
@@ -419,14 +268,16 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         # z-step changed in viewer
         # Disconnect draw event on z-slider callback (improves performance)
         current_step_callbacks = self.viewer.dims.events.current_step.callbacks
-        draw_callback_tuple = [callback for callback in current_step_callbacks if callback[1] == '_draw'][0]
+        draw_callback_tuple = [
+            callback for callback in current_step_callbacks if callback[1] == '_draw'][0]
         self.viewer.dims.events.current_step.disconnect(draw_callback_tuple)
         # Connect new callback
-        self.viewer.dims.events.current_step.connect(self.on_dims_slider_change)
-        
+        self.viewer.dims.events.current_step.connect(
+            self.on_dims_slider_change)
+
     def on_dims_slider_change(self) -> None:
         pass
-        # TO DO: update vertical line over plot (consider multithreading for performance, check details here:
+        # TODO: update vertical line over plot (consider multithreading for performance, check details here:
         #  - https://napari.org/dev/guides/threading.html#multithreading-in-napari)
         # if self.viewer.dims.ndim > 2:
         #     current_time_point = self.viewer.dims.current_step[0]
@@ -435,7 +286,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         #     else:
         #         self.vertical_time_line.set_xdata(current_time_point)
         #     self.canvas.figure.canvas.draw_idle()
-    
+
     def on_update_layers(self) -> None:
         """
         Called when the layer selection changes by ``self.update_layers()``.
@@ -443,8 +294,10 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         super().on_update_layers()
         if len(self.layers) > 0:
             if 'show_selected_label' in self.layers[0].events.emitters.keys():
-                self.layers[0].events.show_selected_label.connect(self._show_selected_label)
-                self.layers[0].events.selected_label.connect(self._show_selected_label)
+                self.layers[0].events.show_selected_label.connect(
+                    self._show_selected_label)
+                self.layers[0].events.selected_label.connect(
+                    self._show_selected_label)
 
     def _show_selected_label(self, event: napari.utils.events.Event) -> None:
         """Redraw plot with selected label.
@@ -477,22 +330,22 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             New signal class value.
         """
         self._signal_class = value
-        self.colorBox.update()
+        self.signal_class_color_spinbox.value = value
+        # self.colorBox.update()
 
-    def enable_selections(self):
+    def enable_line_selections(self, checked):
         """Enable or disable line selector.
 
         If enabled, span selector is disabled.
         """
         # Update toolbar buttons actions
-        if self.toolbar._actions['select'].isChecked():
+        if checked:
             self._enable_line_selector(True)
             # Disable span selector upon activation of line selector
-            self.toolbar._actions['span_select'].setChecked(False)
+            self.custom_toolbar.set_button_state('span_select', False)
             self._enable_span_selector(False)
         else:
             self._enable_line_selector(False)
-        self.toolbar._update_buttons_checked()
 
     def _enable_line_selector(self, active=False):
         """
@@ -507,24 +360,24 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                 self.pick_event_connection_id = self.canvas.figure.canvas.mpl_connect(
                     'pick_event', self._on_pick)
         else:
+            # TODO: Lines seem to be still selectable after disabling line selector
             if self.pick_event_connection_id is not None:
                 self.canvas.figure.canvas.mpl_disconnect(
                     self.pick_event_connection_id)
                 self.pick_event_connection_id = None
 
-    def enable_span_selections(self):
+    def enable_span_selections(self, checked):
         """Enable or disable span selector.
 
         If enabled, line selector is disabled.
         """
-        if self.toolbar._actions['span_select'].isChecked():
+        if checked:
             self._enable_span_selector(True)
             # Disable line selector upon activation of span selector
-            self.toolbar._actions['select'].setChecked(False)
+            self.custom_toolbar.set_button_state('select', False)
             self._enable_line_selector(False)
         else:
             self._enable_span_selector(False)
-        self.toolbar._update_buttons_checked()
 
     def _enable_span_selector(self, active=False):
         """
@@ -533,7 +386,6 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         If span selector was created, enable or disable it.
         """
         if self.span_selector is not None:
-            self.toolbar._update_buttons_checked()
             self.span_selector.active = active
 
     def _enable_mouse_clicks(self, active=False):
@@ -552,7 +404,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                     self.mouse_click_event_connection_id)
                 self.mouse_click_event_connection_id = None
 
-    def _on_span_select(self, xmin, xmax):
+    def _on_span(self, xmin, xmax):
         """Update span indices for selected lines.
 
         Parameters
@@ -595,19 +447,19 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         modifiers = QGuiApplication.keyboardModifiers()
         if event.button == 3:
             # Right click clears selections if select tool is enabled
-            if self.toolbar._actions['select'].isChecked():
-                self._on_span_select(0, 0)
+            if self.custom_toolbar.get_button_state('select'):
+                self._on_span(0, 0)
                 self._clear_selections()
             # Right click resets span annotations if span selector is enabled
-            elif self.toolbar._actions['span_select'].isChecked():
-                self._on_span_select(0, 0)
+            elif self.custom_toolbar.get_button_state('span_select'):
+                self._on_span(0, 0)
             else:
                 # resets plot colors (in case predictions colors were set)
                 self.reset_plot_prediction_colors()
 
         elif event.button == 1:
             # If left-click with select tool enabled and shift key pressed, select all lines
-            if self.toolbar._actions['select'].isChecked():
+            if self.custom_toolbar.get_button_state('select'):
                 if modifiers == Qt.ShiftModifier:
                     self._select_all_lines()
 
@@ -670,7 +522,8 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                 self.layers[0].features[self.object_id_axis_key] == line.label_from_napari_layer, 'Annotations']
             # Update table annotations with current signal class (if span selected, update only on span indices)
             if len(line.span_indices) > 0:
-                span_mask = np.in1d(np.indices((len(line.annotations),)), line.span_indices)
+                span_mask = np.in1d(np.indices(
+                    (len(line.annotations),)), line.span_indices)
                 table_annotations[span_mask] = self._signal_class
             else:
                 table_annotations[:] = self._signal_class
@@ -695,7 +548,8 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                 self.layers[0].features[self.object_id_axis_key] == line.label_from_napari_layer, 'Annotations']
             # Update table annotations with current signal class (if span selected, update only on span indices)
             if len(line.span_indices) > 0:
-                span_mask = np.in1d(np.indices((len(line.annotations),)), line.span_indices)
+                span_mask = np.in1d(np.indices(
+                    (len(line.annotations),)), line.span_indices)
                 table_annotations[span_mask] = 0
             else:
                 table_annotations[:] = 0
@@ -718,7 +572,8 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             label = line.label_from_napari_layer
             feature_table = self.layers[0].features
             # Get the annotation/predictions for the current object_id from table column
-            list_of_values = feature_table[feature_table[self.object_id_axis_key] == label][column_name].values
+            list_of_values = feature_table[feature_table[self.object_id_axis_key]
+                                           == label][column_name].values
             if column_name == 'Predictions':
                 line.predictions = list_of_values
             elif column_name == 'Annotations':
@@ -757,10 +612,11 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         feature_table = self.layers[0].features
 
         # Sort features by object_id and x_axis_key
-        feature_table = feature_table.sort_values(by=[self.object_id_axis_key, self.x_axis_key])
+        feature_table = feature_table.sort_values(
+            by=[self.object_id_axis_key, self.x_axis_key])
         # Get data for each object_id (usually label)
         grouped = feature_table.groupby(self.object_id_axis_key)
-        
+
         x, y = [], []
         for label, sub_df in grouped:
             x.append(sub_df[self.x_axis_key].values)
@@ -783,9 +639,16 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             # gets the data and then plots the data
             x, y, x_axis_name, y_axis_name = self._get_data()
 
-            update_lines = True
-            if len(self._lines) == 0:
-                update_lines = False
+            update_lines = False
+            if len(self._lines) > 0:  # Check if lines were already created
+                # if axes is None, it means axes were cleared, so update lines
+                # if axes is the same as current axes, update lines
+                if self._lines[0].axes is None or self._lines[0].axes == self.axes:
+                    update_lines = True
+                # if axes is different from current axes, clear lines because widget was closed
+                else:
+                    # Clear lines because widget was closed
+                    self._lines = []
 
             for j, (signal_x, signal_y) in enumerate(zip(x, y)):
                 if self.layers[0].show_selected_label and j != self.layers[0].selected_label - 1:
@@ -794,14 +657,15 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
 
                 if update_lines:
                     line = self._lines[j]
-                    # Update line axes with current axes (in case axes were cleared)
+                    # Update line axes with current axes (in case axes were cleared when changing selected layer for example)
                     line.axes = self.axes
                     line.set_data(signal_x, signal_y)
                 else:
                     line = InteractiveLine2D(
                         xdata=signal_x, ydata=signal_y,
                         label_from_napari_layer=j + 1,
-                        color_from_napari_layer=self.layers[0].get_color(j + 1),
+                        color_from_napari_layer=self.layers[0].get_color(
+                            j + 1),
                         color=self.layers[0].get_color(j + 1),
                         label=label_name,
                         linestyle='-',
