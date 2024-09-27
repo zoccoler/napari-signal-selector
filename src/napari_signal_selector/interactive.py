@@ -106,6 +106,15 @@ class InteractiveLine2D(Line2D):
         self._canvas.draw_idle()
 
     @property
+    def annotations_visible(self):
+        return self._annotations_scatter.get_visible()
+    
+    @annotations_visible.setter
+    def annotations_visible(self, value):
+        self._annotations_scatter.set_visible(value)
+        self._canvas.draw_idle()
+
+    @property
     def predictions(self):
         return self._predictions
 
@@ -117,6 +126,15 @@ class InteractiveLine2D(Line2D):
         # Update line collection plot array with predictions
         self._predictions_linecollection.set_array(
             predictions_with_interpolation)
+        self._canvas.draw_idle()
+    
+    @property
+    def predictions_visible(self):
+        return self._predictions_linecollection.get_visible()
+    
+    @predictions_visible.setter
+    def predictions_visible(self, value):
+        self._predictions_linecollection.set_visible(value)
         self._canvas.draw_idle()
 
     @property
@@ -291,13 +309,17 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         checked : bool
             True if annotations are to be shown, False otherwise.
         """
+        # Do not show if all comboboxes have the same value
+        if (self.x_axis_key == self.y_axis_key and self.x_axis_key == self.object_id_axis_key):
+            for line in self._lines:
+                line.annotations_visible = False
+            return
         if checked:
             for line in self._lines:
-                line._annotations_scatter.set_visible(True)
+                line.annotations_visible = True
         else:
             for line in self._lines:
-                line._annotations_scatter.set_visible(False)
-        self.canvas.draw()
+                line.annotations_visible = False
     
     def _show_predictions(self, checked):
         """Show or hide predictions.
@@ -309,11 +331,10 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         """
         if checked:
             for line in self._lines:
-                line._predictions_linecollection.set_visible(True)
+                line.predictions_visible = True
         else:
             for line in self._lines:
-                line._predictions_linecollection.set_visible(False)
-        self.canvas.draw()
+                line.predictions_visible = False
 
     def on_dims_slider_change(self) -> None:
         pass
@@ -722,10 +743,14 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                     self._lines += [line]
                 # Add (or re-add) every line and scatter to axes (in case axes were cleared)
                 line.add_to_axes()
-            # Load previous annotations if any
-            # if hasattr(self, 'show_annotations_button'):
-            #     if self.show_annotations_button.isChecked():
-            #         self.update_line_layout_from_column('Annotations')
+            # Check if annotations are to be shown
+            if hasattr(self, 'show_annotations_button'):
+                if self.show_annotations_button.isChecked():
+                    self._show_annotations(True)
+            # Check if predictions are to be shown
+            if hasattr(self, 'show_predictions_button'):
+                if self.show_predictions_button.isChecked():
+                    self._show_predictions(True)
             self.axes.set_xlabel(x_axis_name)
             self.axes.set_ylabel(y_axis_name)
             self.axes.autoscale(enable=True, axis='both', tight=True)
