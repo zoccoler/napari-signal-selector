@@ -18,7 +18,7 @@ from qtpy.QtGui import QGuiApplication
 
 from qtpy.QtWidgets import QLabel, QWidget
 from napari_matplotlib.util import Interval
-from nap_plot_tools import CustomToolbarWidget, QtColorSpinBox, get_custom_cat10based_cmap_list
+from nap_plot_tools import CustomToolbarWidget, QtColorSpinBox, CustomToolButton, cat10_mod_cmap_first_transparent
 
 __all__ = ["InteractiveFeaturesLineWidget"]
 ICON_ROOT = Path(__file__).parent / "icons"
@@ -34,9 +34,9 @@ class InteractiveLine2D(Line2D):
     Line2D : matplotlib.lines.Line2D
         Matplotlib Line2D object.
     """
-    cmap = get_custom_cat10based_cmap_list()
-    mpl_cmap = ListedColormap(cmap)
-    normalizer = Normalize(vmin=0, vmax=len(cmap) - 1)
+    cmap = cat10_mod_cmap_first_transparent
+    # mpl_cmap = ListedColormap(cmap)
+    normalizer = Normalize(vmin=0, vmax=cmap.N - 1)
     _default_alpha = 0.7
     _default_marker_size = 4
 
@@ -62,14 +62,14 @@ class InteractiveLine2D(Line2D):
             ydata = self.get_ydata()
             # Create scatter for annotations
             self._annotations_scatter = self._axes.scatter(
-                xdata, ydata, c=self._annotations, cmap=self.mpl_cmap, norm=self.normalizer,
+                xdata, ydata, c=self._annotations, cmap=self.cmap, norm=self.normalizer,
                 marker='x', s=self._default_marker_size*4, zorder=3)
             segments = generate_line_segments_array(xdata, ydata)
             # Repeat predictions for interpolated segments (except first and last ones)
             predictions_with_interpolation = np.repeat(
                 self._predictions, 2)[1:-1]
             # Create line collection for predictions
-            self._predictions_linecollection = LineCollection(segments, cmap=self.mpl_cmap, norm=self.normalizer,
+            self._predictions_linecollection = LineCollection(segments, cmap=self.cmap, norm=self.normalizer,
                                                               zorder=4)
             self._predictions_linecollection.set_array(
                 predictions_with_interpolation)
@@ -106,6 +106,15 @@ class InteractiveLine2D(Line2D):
         self._canvas.draw_idle()
 
     @property
+    def annotations_visible(self):
+        return self._annotations_scatter.get_visible()
+    
+    @annotations_visible.setter
+    def annotations_visible(self, value):
+        self._annotations_scatter.set_visible(value)
+        self._canvas.draw_idle()
+
+    @property
     def predictions(self):
         return self._predictions
 
@@ -117,6 +126,15 @@ class InteractiveLine2D(Line2D):
         # Update line collection plot array with predictions
         self._predictions_linecollection.set_array(
             predictions_with_interpolation)
+        self._canvas.draw_idle()
+    
+    @property
+    def predictions_visible(self):
+        return self._predictions_linecollection.get_visible()
+    
+    @predictions_visible.setter
+    def predictions_visible(self, value):
+        self._predictions_linecollection.set_visible(value)
         self._canvas.draw_idle()
 
     @property
@@ -214,30 +232,35 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self.signal_selection_tools_layout.addWidget(QLabel('Signal class:'))
         self.signal_selection_tools_layout.addWidget(
             self.signal_class_color_spinbox)
-        # self.signal_selection_tools_layout.addLayout(
-        #     self.signal_class_color_spinbox_layout)
+        # Add show/hide annotations button
+        self.show_annotations_button = CustomToolButton(
+            default_icon_path=Path(ICON_ROOT / "hide_annotations.png").__str__(),
+            checked_icon_path=Path(ICON_ROOT / "show_annotations.png").__str__(),
+        )
+        self.show_annotations_button.setToolTip(
+            'Show or hide annotations')
+        self.show_annotations_button.setIconSize(32)
+        self.show_annotations_button.toggled.connect(
+            self._show_annotations)
+        self.show_annotations_button.setChecked(True)
+        self.signal_selection_tools_layout.addWidget(self.show_annotations_button)
+        # Add show/hide predictions button
+        self.show_predictions_button = CustomToolButton(
+            default_icon_path=Path(ICON_ROOT / "hide_predictions.png").__str__(),
+            checked_icon_path=Path(ICON_ROOT / "show_predictions.png").__str__(),
+        )
+        self.show_predictions_button.setToolTip(
+            'Show or hide predictions')
+        self.show_predictions_button.setIconSize(32)
+        self.show_predictions_button.toggled.connect(
+            self._show_predictions)
+        self.signal_selection_tools_layout.addWidget(self.show_predictions_button)
+        
         # Add stretch to the right to push buttons to the left
         self.signal_selection_tools_layout.addStretch(1)
-        # Set the left margin to 0 (or your desired value)
-        # self.signal_selection_tools_layout.setContentsMargins(0, self.signal_selection_tools_layout.contentsMargins().top(), 
-        #                                    self.signal_selection_tools_layout.contentsMargins().right(), 
-        #                                    self.signal_selection_tools_layout.contentsMargins().bottom())
+        # Set the left margin to 0 and spacing to 0
         self.signal_selection_tools_layout.setContentsMargins(0,0,0,0)
-
-        # Optionally, set spacing if needed
         self.signal_selection_tools_layout.setSpacing(0)
-        # # Debug stylesheet
-        # self.setStyleSheet("""
-        #     QWidget {
-        #         background-color: yellow; /* Highlight the background */
-        #     }
-        #     QHBoxLayout {
-        #         border: 2px solid red; /* Red border for layout */
-        #     }
-        #     CustomToolbarWidget {
-        #         background-color: lightblue; /* Blue background for custom toolbar */
-        #     }
-        # """)
 
         self.layout().insertLayout(2, self.signal_selection_tools_layout)
         self.layout().setContentsMargins(0, 0, 0, 0)
@@ -274,6 +297,44 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         # Connect new callback
         self.viewer.dims.events.current_step.connect(
             self.on_dims_slider_change)
+        
+        # Load previous annotations if any
+        self.update_line_layout_from_column('Annotations')
+
+    def _show_annotations(self, checked):
+        """Show or hide annotations.
+
+        Parameters
+        ----------
+        checked : bool
+            True if annotations are to be shown, False otherwise.
+        """
+        # Do not show if all comboboxes have the same value
+        if (self.x_axis_key == self.y_axis_key and self.x_axis_key == self.object_id_axis_key):
+            for line in self._lines:
+                line.annotations_visible = False
+            return
+        if checked:
+            for line in self._lines:
+                line.annotations_visible = True
+        else:
+            for line in self._lines:
+                line.annotations_visible = False
+    
+    def _show_predictions(self, checked):
+        """Show or hide predictions.
+
+        Parameters
+        ----------
+        checked : bool
+            True if predictions are to be shown, False otherwise.
+        """
+        if checked:
+            for line in self._lines:
+                line.predictions_visible = True
+        else:
+            for line in self._lines:
+                line.predictions_visible = False
 
     def on_dims_slider_change(self) -> None:
         pass
@@ -314,6 +375,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         """
         if len(self._selected_lines) > 0:
             self._add_selected_lines_to_features_as_new_category()
+            self.show_annotations_button.setChecked(True)
 
     def remove_annotation(self):
         """Remove selected lines from current signal class.
@@ -568,6 +630,11 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         column_name : str
             Name of the column with results from a classification model.
         """
+        if len(self.layers) == 0:
+            # No layers to check for features
+            return
+        if column_name not in self.layers[0].features.keys():
+            return
         for line in self._lines:
             label = line.label_from_napari_layer
             feature_table = self.layers[0].features
@@ -576,8 +643,10 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                                            == label][column_name].values
             if column_name == 'Predictions':
                 line.predictions = list_of_values
+                self._show_predictions(True)
             elif column_name == 'Annotations':
                 line.annotations = list_of_values
+                self._show_annotations(True)
 
     def reset_plot_prediction_colors(self):
         """Reset plot colors to original colors from napari layer (remove categorical colors).
@@ -677,6 +746,14 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                     self._lines += [line]
                 # Add (or re-add) every line and scatter to axes (in case axes were cleared)
                 line.add_to_axes()
+            # Check if annotations are to be shown
+            if hasattr(self, 'show_annotations_button'):
+                if self.show_annotations_button.isChecked():
+                    self._show_annotations(True)
+            # Check if predictions are to be shown
+            if hasattr(self, 'show_predictions_button'):
+                if self.show_predictions_button.isChecked():
+                    self._show_predictions(True)
             self.axes.set_xlabel(x_axis_name)
             self.axes.set_ylabel(y_axis_name)
             self.axes.autoscale(enable=True, axis='both', tight=True)
