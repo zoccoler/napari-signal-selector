@@ -18,7 +18,7 @@ from qtpy.QtGui import QGuiApplication
 
 from qtpy.QtWidgets import QLabel, QWidget
 from napari_matplotlib.util import Interval
-from nap_plot_tools import CustomToolbarWidget, QtColorSpinBox, CustomToolButton, get_custom_cat10based_cmap_list
+from nap_plot_tools import CustomToolbarWidget, QtColorSpinBox, CustomToolButton, cat10_mod_cmap_first_transparent
 
 __all__ = ["InteractiveFeaturesLineWidget"]
 ICON_ROOT = Path(__file__).parent / "icons"
@@ -34,9 +34,9 @@ class InteractiveLine2D(Line2D):
     Line2D : matplotlib.lines.Line2D
         Matplotlib Line2D object.
     """
-    cmap = get_custom_cat10based_cmap_list()
-    mpl_cmap = ListedColormap(cmap)
-    normalizer = Normalize(vmin=0, vmax=len(cmap) - 1)
+    cmap = cat10_mod_cmap_first_transparent
+    # mpl_cmap = ListedColormap(cmap)
+    normalizer = Normalize(vmin=0, vmax=cmap.N - 1)
     _default_alpha = 0.7
     _default_marker_size = 4
 
@@ -62,14 +62,14 @@ class InteractiveLine2D(Line2D):
             ydata = self.get_ydata()
             # Create scatter for annotations
             self._annotations_scatter = self._axes.scatter(
-                xdata, ydata, c=self._annotations, cmap=self.mpl_cmap, norm=self.normalizer,
+                xdata, ydata, c=self._annotations, cmap=self.cmap, norm=self.normalizer,
                 marker='x', s=self._default_marker_size*4, zorder=3)
             segments = generate_line_segments_array(xdata, ydata)
             # Repeat predictions for interpolated segments (except first and last ones)
             predictions_with_interpolation = np.repeat(
                 self._predictions, 2)[1:-1]
             # Create line collection for predictions
-            self._predictions_linecollection = LineCollection(segments, cmap=self.mpl_cmap, norm=self.normalizer,
+            self._predictions_linecollection = LineCollection(segments, cmap=self.cmap, norm=self.normalizer,
                                                               zorder=4)
             self._predictions_linecollection.set_array(
                 predictions_with_interpolation)
@@ -630,6 +630,9 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         column_name : str
             Name of the column with results from a classification model.
         """
+        if len(self.layers) == 0:
+            # No layers to check for features
+            return
         if column_name not in self.layers[0].features.keys():
             return
         for line in self._lines:
