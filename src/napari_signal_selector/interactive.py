@@ -225,6 +225,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             ICON_ROOT / "add_annotation.png").__str__(), callback=self.add_annotation, checkable=False)
         self.custom_toolbar.add_custom_button(name='delete_annotation', tooltip="Delete selected lines class annotation", default_icon_path=Path(
             ICON_ROOT / "delete_annotation.png").__str__(), callback=self.remove_annotation, checkable=False)
+        # self.custom_toolbar.add_custom_button(name='pick_signal
 
         ## Signal Selection Tools ##
         self.signal_selection_tools_layout = QHBoxLayout()
@@ -232,6 +233,17 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self.signal_selection_tools_layout.addWidget(QLabel('Signal class:'))
         self.signal_selection_tools_layout.addWidget(
             self.signal_class_color_spinbox)
+        # Add show/hide selected button
+        self.show_selected_button = CustomToolButton(
+            default_icon_path=Path(ICON_ROOT / "hide_selected.png").__str__(),
+            checked_icon_path=Path(ICON_ROOT / "show_selected.png").__str__(),
+        )
+        self.show_selected_button.setToolTip(
+            'Show or hide selected signals corresponding labels in Labels layer')
+        self.show_selected_button.setIconSize(32)
+        self.show_selected_button.toggled.connect(
+            self._show_selected_signals)
+        self.signal_selection_tools_layout.addWidget(self.show_selected_button)
         # Add show/hide annotations button
         self.show_annotations_button = CustomToolButton(
             default_icon_path=Path(ICON_ROOT / "hide_annotations.png").__str__(),
@@ -255,6 +267,8 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self.show_predictions_button.toggled.connect(
             self._show_predictions)
         self.signal_selection_tools_layout.addWidget(self.show_predictions_button)
+
+
         
         # Add stretch to the right to push buttons to the left
         self.signal_selection_tools_layout.addStretch(1)
@@ -301,6 +315,19 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         # Load previous annotations if any
         self.update_line_layout_from_column('Annotations')
 
+    def _show_selected_signals(self, checked):
+        """Show or hide selected signals corresponding labels in Labels layer.
+
+        Parameters
+        ----------
+        checked : bool
+            True if selected signals are to be shown, False otherwise.
+        """
+        if checked:
+            self.mask_labels(labels_to_keep=[l.label_from_napari_layer for l in self._selected_lines])
+        else:
+            self.mask_labels(None)
+            
     def _show_annotations(self, checked):
         """Show or hide annotations.
 
@@ -661,6 +688,37 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         for line in self._lines:
             line.annotations = np.zeros(line.get_xdata().shape).tolist()
         return
+
+    def mask_labels(self, labels_to_keep=None):
+        """Mask labels in a labels layer.
+
+        Parameters
+        ----------
+        labels_to_keep : list of int, optional
+            List of labels to keep. If None, all labels are displayed (clears previously masked labels). If empty list, no change is applied.
+        """
+        from napari.utils import colormaps
+        # If emtpy list, return (no labels selected)
+        if labels_to_keep == []:
+            return
+        # Get the first layer (labels layer)
+        labels_layer = self.layers[0]
+        print(labels_layer)
+        labels_layer_colormap = labels_layer.colormap
+        # Guarantee that the colormap has enough colors to represent all the labels
+        if len(labels_layer_colormap.colors) <= labels_layer.data.max():
+            labels_layer_colormap = colormaps.label_colormap(labels_layer.data.max() + 1)
+            labels_layer.colormap = labels_layer_colormap
+        if labels_to_keep is None:
+            # If labels_to_keep is None, show all labels
+            labels_layer_colormap.colors[:, -1] = 1
+        else:
+            labels_to_hide = [l for l in np.arange(1, labels_layer.data.max()+1) if l not in labels_to_keep]
+            print(f'Labels to keep: {labels_to_keep}')
+            print(f'Labels to hide: {labels_to_hide}')
+            labels_layer_colormap.colors[labels_to_hide, -1] = 0 
+        labels_layer.colormap = labels_layer_colormap
+        labels_layer.refresh()
 
     def _get_data(self) -> Tuple[npt.NDArray[Any], npt.NDArray[Any], str, str]:
         """Get the plot data.
