@@ -1,27 +1,157 @@
 from typing import Any, Dict, List, Optional, Tuple, Union
 from cycler import cycler
+import os
 import napari
 import numpy as np
 import numpy.typing as npt
+from pathlib import Path
 from qtpy.QtWidgets import QComboBox, QLabel, QVBoxLayout, QWidget
+from qtpy.QtGui import QIcon
+from matplotlib.backends.backend_qtagg import (  # type: ignore[attr-defined]
+    FigureCanvasQTAgg,
+    NavigationToolbar2QT,
+)
+from matplotlib.figure import Figure
 
-from napari_matplotlib.base import NapariMPLWidget
-from napari_matplotlib.util import Interval
-
+ICON_ROOT = Path(__file__).parent / "icons"
 __all__ = ["LineBaseWidget", "FeaturesLineWidget"]
 
 
-class LineBaseWidget(NapariMPLWidget):
+class NapariNavigationToolbar(NavigationToolbar2QT):
+    """Custom Toolbar style for Napari."""
+
+    def __init__(self, *args, **kwargs) -> None:  
+        super().__init__(*args, **kwargs)  
+        # self.setIconSize(
+        #     from_napari_css_get_size_of(
+        #         "QtViewerPushButton", fallback=(28, 28)
+        #     )
+        # )
+
+    def _update_buttons_checked(self) -> None:
+        """Update toggle tool icons when selected/unselected."""
+        super()._update_buttons_checked()  
+        icon_dir = Path(
+            ICON_ROOT / "mpl_white").__str__()
+
+        # changes pan/zoom icons depending on state (checked or not)
+        if "pan" in self._actions:
+            if self._actions["pan"].isChecked():
+                self._actions["pan"].setIcon(
+                    QIcon(os.path.join(icon_dir, "Pan_checked.png"))
+                )
+            else:
+                self._actions["pan"].setIcon(
+                    QIcon(os.path.join(icon_dir, "Pan.png"))
+                )
+        if "zoom" in self._actions:
+            if self._actions["zoom"].isChecked():
+                self._actions["zoom"].setIcon(
+                    QIcon(os.path.join(icon_dir, "Zoom_checked.png"))
+                )
+            else:
+                self._actions["zoom"].setIcon(
+                    QIcon(os.path.join(icon_dir, "Zoom.png"))
+                )
+
+class LineBaseWidget(QWidget):
     """
     Base class for widgets that do line plots of two datasets against each other.
     """
 
     def __init__(self, napari_viewer: napari.viewer.Viewer, parent: Optional[QWidget] = None,
                  ):
-        super().__init__(napari_viewer, parent=parent)
+        super().__init__(parent=parent)
+        self.viewer = napari_viewer
+        self.canvas = FigureCanvasQTAgg()
+        self.canvas.figure.set_layout_engine("constrained")
+        self.toolbar = NapariNavigationToolbar(self.canvas, parent=self)
+        self._replace_toolbar_icons()
+        self.setLayout(QVBoxLayout())
+        self.layout().addWidget(self.toolbar)
+        self.layout().addWidget(self.canvas)
+
+        self._setup_callbacks()
+        self.layers: list[napari.layers.Layer] = []
+
         self.add_single_axes()
         self.axes.tick_params(axis='x', colors='white')
         self.axes.tick_params(axis='y', colors='white')
+
+    def _replace_toolbar_icons(self) -> None:
+        """
+        Modifies toolbar icons to match the napari theme, and add some tooltips.
+        """
+        icon_dir = Path(
+            ICON_ROOT / "mpl_white").__str__()
+        for action in self.toolbar.actions():
+            text = action.text()
+            if text == "Pan":
+                action.setToolTip(
+                    "Pan/Zoom: Left button pans; Right button zooms; "
+                    "Click once to activate; Click again to deactivate"
+                )
+            if text == "Zoom":
+                action.setToolTip(
+                    "Zoom to rectangle; Click once to activate; "
+                    "Click again to deactivate"
+                )
+            if len(text) > 0:  # i.e. not a separator item
+                icon_path = os.path.join(icon_dir, text + ".png")
+                action.setIcon(QIcon(icon_path))
+
+    def _setup_callbacks(self) -> None:
+        """
+        Sets up callbacks.
+
+        Sets up callbacks for when:
+        - Layer selection is changed
+        - z-step is changed
+        """
+        # z-step changed in viewer
+        # self.viewer.dims.events.current_step.connect(self._draw)
+        # Layer selection changed in viewer
+        self.viewer.layers.selection.events.changed.connect(
+            self._update_layers
+        )
+
+    @property
+    def _valid_layer_selection(self) -> bool:
+        """
+        Return `True` if layer selection is valid.
+        """
+        return all(
+            isinstance(layer, self.input_layer_types) for layer in self.layers
+        )
+
+    @property
+    def figure(self) -> Figure:
+        """Matplotlib figure."""
+        return self.canvas.figure
+
+    def add_single_axes(self) -> None:
+        """
+        Add a single Axes to the figure.
+
+        The Axes is saved on the ``.axes`` attribute for later access.
+        """
+        self.axes = self.figure.add_subplot()
+
+    def _update_layers(self, event: napari.utils.events.Event) -> None:
+        """
+        Update the ``layers`` attribute with currently selected layers and re-draw.
+        """
+        self.layers = list(self.viewer.layers.selection)
+        self.layers = sorted(self.layers, key=lambda layer: layer.name)
+        self.on_update_layers()
+        if self._valid_layer_selection:
+            self._draw()
+
+    def _draw(self):
+        self.clear()
+        if self._valid_layer_selection:
+            self.draw()
+        self.canvas.draw() 
 
     def clear(self) -> None:
         """
@@ -69,7 +199,6 @@ class LineWidget(LineBaseWidget):
     Plot pixel values of an Image layer underneath a line from a Shapes layer.
     """
 
-    n_layers_input = Interval(2, 2)
     input_layer_types = (napari.layers.Image,
                          napari.layers.Shapes,)
 
@@ -141,7 +270,6 @@ class FeaturesLineWidget(LineBaseWidget):
     Widget to do line plots of two features from a layer, grouped by object_id.
     """
 
-    n_layers_input = Interval(1, 1)
     # Currently working with Labels layer
     input_layer_types = (
         napari.layers.Labels,

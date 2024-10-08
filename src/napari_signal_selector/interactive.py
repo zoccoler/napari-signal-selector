@@ -20,6 +20,15 @@ from qtpy.QtWidgets import QLabel, QWidget
 from napari_matplotlib.util import Interval
 from nap_plot_tools import CustomToolbarWidget, QtColorSpinBox, CustomToolButton, cat10_mod_cmap_first_transparent
 
+# Testing performance improvements
+# import matplotlib as mpl
+# mpl.rcParams['path.simplify'] = True
+# mpl.rcParams['path.simplify_threshold'] = 1
+# mpl.rcParams['agg.path.chunksize'] = 1000
+
+# import matplotlib.style as mplstyle
+# mplstyle.use('fast')
+
 __all__ = ["InteractiveFeaturesLineWidget"]
 ICON_ROOT = Path(__file__).parent / "icons"
 
@@ -304,10 +313,10 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
 
         # z-step changed in viewer
         # Disconnect draw event on z-slider callback (improves performance)
-        current_step_callbacks = self.viewer.dims.events.current_step.callbacks
-        draw_callback_tuple = [
-            callback for callback in current_step_callbacks if callback[1] == '_draw'][0]
-        self.viewer.dims.events.current_step.disconnect(draw_callback_tuple)
+        # current_step_callbacks = self.viewer.dims.events.current_step.callbacks
+        # draw_callback_tuple = [
+        #     callback for callback in current_step_callbacks if callback[1] == '_draw'][0]
+        # self.viewer.dims.events.current_step.disconnect(draw_callback_tuple)
         # Connect new callback
         self.viewer.dims.events.current_step.connect(
             self.on_dims_slider_change)
