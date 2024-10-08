@@ -234,7 +234,6 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             ICON_ROOT / "add_annotation.png").__str__(), callback=self.add_annotation, checkable=False)
         self.custom_toolbar.add_custom_button(name='delete_annotation', tooltip="Delete selected lines class annotation", default_icon_path=Path(
             ICON_ROOT / "delete_annotation.png").__str__(), callback=self.remove_annotation, checkable=False)
-        # self.custom_toolbar.add_custom_button(name='pick_signal
 
         ## Signal Selection Tools ##
         self.signal_selection_tools_layout = QHBoxLayout()
@@ -285,7 +284,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self.signal_selection_tools_layout.setContentsMargins(0,0,0,0)
         self.signal_selection_tools_layout.setSpacing(0)
 
-        self.layout().insertLayout(2, self.signal_selection_tools_layout)
+        self.layout().insertLayout(1, self.signal_selection_tools_layout)
         self.layout().setContentsMargins(0, 0, 0, 0)
 
         # Create pick event connection id (used by line selector)
