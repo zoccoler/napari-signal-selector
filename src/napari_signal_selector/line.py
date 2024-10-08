@@ -7,10 +7,11 @@ import numpy.typing as npt
 from pathlib import Path
 from qtpy.QtWidgets import QComboBox, QLabel, QVBoxLayout, QWidget
 from qtpy.QtGui import QIcon
-from matplotlib.backends.backend_qtagg import (  # type: ignore[attr-defined]
+from matplotlib.backends.backend_qtagg import (
     FigureCanvasQTAgg,
     NavigationToolbar2QT,
 )
+from napari.utils.events import Event
 from matplotlib.figure import Figure
 
 ICON_ROOT = Path(__file__).parent / "icons"
@@ -31,8 +32,7 @@ class NapariNavigationToolbar(NavigationToolbar2QT):
     def _update_buttons_checked(self) -> None:
         """Update toggle tool icons when selected/unselected."""
         super()._update_buttons_checked()  
-        icon_dir = Path(
-            ICON_ROOT / "mpl_white").__str__()
+        icon_dir = self.parentWidget()._get_path_to_icon().__str__()
 
         # changes pan/zoom icons depending on state (checked or not)
         if "pan" in self._actions:
@@ -58,7 +58,6 @@ class LineBaseWidget(QWidget):
     """
     Base class for widgets that do line plots of two datasets against each other.
     """
-
     def __init__(self, napari_viewer: napari.viewer.Viewer, parent: Optional[QWidget] = None,
                  ):
         super().__init__(parent=parent)
@@ -75,15 +74,81 @@ class LineBaseWidget(QWidget):
         self.layers: list[napari.layers.Layer] = []
 
         self.add_single_axes()
-        self.axes.tick_params(axis='x', colors='white')
-        self.axes.tick_params(axis='y', colors='white')
+        self.setup_napari_theme(None)
+        self.viewer.events.theme.connect(self.setup_napari_theme)
+
+    def setup_napari_theme(self, theme_event: Event):
+        if theme_event is None:
+            theme = self.viewer.theme
+        else:
+            theme = theme_event.value
+        if theme == 'dark':
+            # changing color of axes background to napari main window color
+            self.figure.patch.set_facecolor("#262930")
+            # changing color of plot background to napari main window color
+            self.axes.set_facecolor("#262930")
+
+            # changing colors of all axes
+            self.axes.spines["bottom"].set_color("white")
+            self.axes.spines["top"].set_color("white")
+            self.axes.spines["right"].set_color("white")
+            self.axes.spines["left"].set_color("white")
+            self.axes.xaxis.label.set_color("white")
+            self.axes.yaxis.label.set_color("white")
+
+            # changing colors of axes ticks
+            self.axes.tick_params(axis="x", colors="white", labelcolor="white")
+            self.axes.tick_params(axis="y", colors="white", labelcolor="white")
+
+            # changing colors of axes labels
+            self.axes.xaxis.label.set_color("white")
+            self.axes.yaxis.label.set_color("white")
+
+            # replace toolbar icons with dark theme icons
+            self._replace_toolbar_icons()
+
+        elif theme == 'light':
+            # changing color of axes background to napari main window color
+            self.figure.patch.set_facecolor("#efebe9")
+            # changing color of plot background to napari main window color
+            self.axes.set_facecolor("#efebe9")
+
+            # changing colors of all axes
+            self.axes.spines["bottom"].set_color("black")
+            self.axes.spines["top"].set_color("black")
+            self.axes.spines["right"].set_color("black")
+            self.axes.spines["left"].set_color("black")
+            self.axes.xaxis.label.set_color("black")
+            self.axes.yaxis.label.set_color("black")
+
+            # changing colors of axes ticks
+            self.axes.tick_params(axis="x", colors="black", labelcolor="black")
+            self.axes.tick_params(axis="y", colors="black", labelcolor="black")
+
+            # changing colors of axes labels
+            self.axes.xaxis.label.set_color("black")
+            self.axes.yaxis.label.set_color("black")
+        self.canvas.draw()
+
+    def _get_path_to_icon(self) -> Path:
+        """
+        Get the icons directory (which is theme-dependent).
+
+        Some icons were modified from
+        https://github.com/matplotlib/matplotlib/tree/main/lib/matplotlib/mpl-data/images
+        Others were drawn from scratch.
+        """
+
+        if self.viewer.theme == "light":
+            return ICON_ROOT / "black"
+        else:
+            return ICON_ROOT / "white"
 
     def _replace_toolbar_icons(self) -> None:
         """
         Modifies toolbar icons to match the napari theme, and add some tooltips.
         """
-        icon_dir = Path(
-            ICON_ROOT / "mpl_white").__str__()
+        icon_dir = self._get_path_to_icon().__str__()
         for action in self.toolbar.actions():
             text = action.text()
             if text == "Pan":

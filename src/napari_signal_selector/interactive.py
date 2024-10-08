@@ -19,6 +19,7 @@ from qtpy.QtGui import QGuiApplication
 from qtpy.QtWidgets import QLabel, QWidget
 from napari_matplotlib.util import Interval
 from nap_plot_tools import CustomToolbarWidget, QtColorSpinBox, CustomToolButton, cat10_mod_cmap_first_transparent
+from napari.utils.events import Event
 
 # Testing performance improvements
 # import matplotlib as mpl
@@ -227,13 +228,13 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self.custom_toolbar = CustomToolbarWidget(self)
         ### Add toolbuttons to toolbar ###
         self.custom_toolbar.add_custom_button(name='select', tooltip="Enable or disable line selection", default_icon_path=Path(
-            ICON_ROOT / "select.png").__str__(), callback=self.enable_line_selections, checkable=True, checked_icon_path=Path(ICON_ROOT / "select_checked.png").__str__())
+                                              self._get_path_to_icon() / "select.png").__str__(), callback=self.enable_line_selections, checkable=True, checked_icon_path=Path(self._get_path_to_icon() / "select_checked.png").__str__())
         self.custom_toolbar.add_custom_button(name='span_select', tooltip="Enable or disable span selection", default_icon_path=Path(
-            ICON_ROOT / "span_select.png").__str__(), callback=self.enable_span_selections, checkable=True, checked_icon_path=Path(ICON_ROOT / "span_select_checked.png").__str__())
+            self._get_path_to_icon() / "span_select.png").__str__(), callback=self.enable_span_selections, checkable=True, checked_icon_path=Path(self._get_path_to_icon() / "span_select_checked.png").__str__())
         self.custom_toolbar.add_custom_button(name='add_annotation', tooltip="Add selected lines to current signal class", default_icon_path=Path(
-            ICON_ROOT / "add_annotation.png").__str__(), callback=self.add_annotation, checkable=False)
+            self._get_path_to_icon() / "add_annotation.png").__str__(), callback=self.add_annotation, checkable=False)
         self.custom_toolbar.add_custom_button(name='delete_annotation', tooltip="Delete selected lines class annotation", default_icon_path=Path(
-            ICON_ROOT / "delete_annotation.png").__str__(), callback=self.remove_annotation, checkable=False)
+            self._get_path_to_icon() / "delete_annotation.png").__str__(), callback=self.remove_annotation, checkable=False)
 
         ## Signal Selection Tools ##
         self.signal_selection_tools_layout = QHBoxLayout()
@@ -243,8 +244,8 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             self.signal_class_color_spinbox)
         # Add show/hide selected button
         self.show_selected_button = CustomToolButton(
-            default_icon_path=Path(ICON_ROOT / "hide_selected.png").__str__(),
-            checked_icon_path=Path(ICON_ROOT / "show_selected.png").__str__(),
+            default_icon_path=Path(self._get_path_to_icon() / "hide_selected.png").__str__(),
+            checked_icon_path=Path(self._get_path_to_icon() / "show_selected.png").__str__(),
         )
         self.show_selected_button.setToolTip(
             'Show or hide selected signals corresponding labels in Labels layer')
@@ -254,8 +255,8 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self.signal_selection_tools_layout.addWidget(self.show_selected_button)
         # Add show/hide annotations button
         self.show_annotations_button = CustomToolButton(
-            default_icon_path=Path(ICON_ROOT / "hide_annotations.png").__str__(),
-            checked_icon_path=Path(ICON_ROOT / "show_annotations.png").__str__(),
+            default_icon_path=Path(self._get_path_to_icon() / "hide_annotations.png").__str__(),
+            checked_icon_path=Path(self._get_path_to_icon() / "show_annotations.png").__str__(),
         )
         self.show_annotations_button.setToolTip(
             'Show or hide annotations')
@@ -266,8 +267,8 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self.signal_selection_tools_layout.addWidget(self.show_annotations_button)
         # Add show/hide predictions button
         self.show_predictions_button = CustomToolButton(
-            default_icon_path=Path(ICON_ROOT / "hide_predictions.png").__str__(),
-            checked_icon_path=Path(ICON_ROOT / "show_predictions.png").__str__(),
+            default_icon_path=Path(self._get_path_to_icon() / "hide_predictions.png").__str__(),
+            checked_icon_path=Path(self._get_path_to_icon() / "show_predictions.png").__str__(),
         )
         self.show_predictions_button.setToolTip(
             'Show or hide predictions')
@@ -322,6 +323,22 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         
         # Load previous annotations if any
         self.update_line_layout_from_column('Annotations')
+
+    def _replace_custom_toolbar_icons(self):
+        print('Replacing custom toolbar icons')
+        if hasattr(self, 'custom_toolbar'):
+            print(self.viewer.theme)
+            for button_name, button in self.custom_toolbar.buttons.items():
+                print(button_name)
+                print(Path(
+                    self._get_path_to_icon() / f"{button_name}.png").__str__())
+                button.update_icon(default_icon_path=Path(
+                    self._get_path_to_icon() / f"{button_name}.png").__str__(), checked_icon_path=Path(self._get_path_to_icon() / f"{button_name}_checked.png").__str__())
+
+    def setup_napari_theme(self, theme_event: Event):
+        super().setup_napari_theme(theme_event)
+        self._replace_custom_toolbar_icons()
+
 
     def _show_selected_signals(self, checked):
         """Show or hide selected signals corresponding labels in Labels layer.
