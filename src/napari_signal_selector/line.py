@@ -65,7 +65,6 @@ class LineBaseWidget(QWidget):
         self.canvas = FigureCanvasQTAgg()
         self.canvas.figure.set_layout_engine("constrained")
         self.toolbar = NapariNavigationToolbar(self.canvas, parent=self)
-        self._replace_toolbar_icons()
         self.setLayout(QVBoxLayout())
         self.layout().addWidget(self.toolbar)
         self.layout().addWidget(self.canvas)
@@ -104,9 +103,6 @@ class LineBaseWidget(QWidget):
             self.axes.xaxis.label.set_color("white")
             self.axes.yaxis.label.set_color("white")
 
-            # replace toolbar icons with dark theme icons
-            self._replace_toolbar_icons()
-
         elif theme == 'light':
             # changing color of axes background to napari main window color
             self.figure.patch.set_facecolor("#efebe9")
@@ -128,6 +124,8 @@ class LineBaseWidget(QWidget):
             # changing colors of axes labels
             self.axes.xaxis.label.set_color("black")
             self.axes.yaxis.label.set_color("black")
+        # replace toolbar icons with dark theme icons
+        self._replace_toolbar_icons()
         self.canvas.draw()
 
     def _get_path_to_icon(self) -> Path:
