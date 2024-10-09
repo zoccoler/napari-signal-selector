@@ -243,11 +243,11 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             self.signal_class_color_spinbox)
         # Add show/hide selected button
         self.show_selected_button = CustomToolButton(
-            default_icon_path=Path(icon_dir / "hide_selected.png").__str__(),
+            default_icon_path=Path(icon_dir / "show_all.png").__str__(),
             checked_icon_path=Path(icon_dir / "show_selected.png").__str__(),
         )
         self.show_selected_button.setToolTip(
-            'Show or hide selected signals corresponding labels in Labels layer')
+            'Show all signals or show only selected signals (including corresponding labels in Labels layer)')
         self.show_selected_button.setIconSize(32)
         self.show_selected_button.toggled.connect(
             self._show_selected_signals)
@@ -331,7 +331,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             for button_name, button in self.custom_toolbar.buttons.items():
                 button.update_icon_path(default_icon_path=Path(
                     icon_dir / f"{button_name}.png").__str__(), checked_icon_path=Path(icon_dir / f"{button_name}_checked.png").__str__())
-            self.show_selected_button.update_icon_path(default_icon_path=Path(icon_dir / "hide_selected.png").__str__(),
+            self.show_selected_button.update_icon_path(default_icon_path=Path(icon_dir / "show_all.png").__str__(),
                                                         checked_icon_path=Path(icon_dir / "show_selected.png").__str__())
             self.show_annotations_button.update_icon_path(default_icon_path=Path(icon_dir / "hide_annotations.png").__str__(),
                                                           checked_icon_path=Path(icon_dir / "show_annotations.png").__str__())
@@ -351,9 +351,15 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         checked : bool
             True if selected signals are to be shown, False otherwise.
         """
-        # TODO: axis label colors are being set to black when this is called
         if checked:
-            self.mask_labels(labels_to_keep=[l.label_from_napari_layer for l in self._selected_lines])
+            # If 'Show Selected' label from napari labels layer is checked, uncheck it
+            # These must be mutually exclusive
+            if self.layers[0].show_selected_label == True:
+                self.layers[0].show_selected_label = False
+            if len(self._selected_lines) == 0:
+                self.mask_labels(None)
+            else:
+                self.mask_labels(labels_to_keep=[l.label_from_napari_layer for l in self._selected_lines])
         else:
             self.mask_labels(None)
             
@@ -398,7 +404,6 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         #  - https://napari.org/dev/guides/threading.html#multithreading-in-napari)
         if self.viewer.dims.ndim > 2:
             current_time_point = self.viewer.dims.current_step[0]
-            print(f'Current time point: {current_time_point}')
             if self.vertical_time_line is None:
                 self.vertical_time_line = self.axes.axvline(x=current_time_point, color='white', ls='--')
             else:
@@ -425,6 +430,14 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         event : napari.utils.events.Event
             napari event.
         """
+        print(event)
+        # if event.value is not None:
+        if event.type=='show_selected_label':
+            if event.show_selected_label == True:
+                if self.show_selected_button.isChecked():
+                    # If show_selected_button is checked, uncheck it
+                    # These must be mutually exclusive
+                    self.show_selected_button.setChecked(False)
         self._draw()
 
     def add_annotation(self):
@@ -614,6 +627,10 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                 # Add line to selected lines
                 if line not in self._selected_lines:
                     self._selected_lines.append(line)
+            # If show selected button is checked, redraw plot to display only selected lines as the user selects them
+            #TODO: fix this, not working yet
+            if self.show_selected_button.isChecked():
+                self.draw()
         self.canvas.figure.canvas.draw_idle()
 
     def _select_all_lines(self):
@@ -748,7 +765,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             print(f'Labels to hide: {labels_to_hide}')
             labels_layer_colormap.colors[labels_to_hide, -1] = 0 
         labels_layer.colormap = labels_layer_colormap
-        labels_layer.refresh(thumbnail=True, data_displayed=True, force=True)
+        # labels_layer.refresh(thumbnail=True, data_displayed=True, force=True)
 
     def _get_data(self) -> Tuple[npt.NDArray[Any], npt.NDArray[Any], str, str]:
         """Get the plot data.
@@ -808,6 +825,10 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             for j, (signal_x, signal_y) in enumerate(zip(x, y)):
                 if self.layers[0].show_selected_label and j != self.layers[0].selected_label - 1:
                     continue
+                if hasattr(self, 'show_selected_button') and self.show_selected_button.isChecked() and len(self._selected_lines) > 0 and j not in [l.label_from_napari_layer - 1 for l in self._selected_lines]:
+                    continue
+                # if self.show_selected_button.isChecked() and j not in [l.label_from_napari_layer for l in self._selected_lines]:
+                #     continue
                 label_name = self.y_axis_key
 
                 if update_lines:
