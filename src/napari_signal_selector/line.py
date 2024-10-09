@@ -73,6 +73,8 @@ class LineBaseWidget(QWidget):
         self.layers: list[napari.layers.Layer] = []
 
         self.add_single_axes()
+        self.axes_color = None
+        self.axes_bg_color = None
         self.setup_napari_theme(None)
         self.viewer.events.theme.connect(self.setup_napari_theme)
 
@@ -82,48 +84,33 @@ class LineBaseWidget(QWidget):
         else:
             theme = theme_event.value
         if theme == 'dark':
-            # changing color of axes background to napari main window color
-            self.figure.patch.set_facecolor("#262930")
-            # changing color of plot background to napari main window color
-            self.axes.set_facecolor("#262930")
-
-            # changing colors of all axes
-            self.axes.spines["bottom"].set_color("white")
-            self.axes.spines["top"].set_color("white")
-            self.axes.spines["right"].set_color("white")
-            self.axes.spines["left"].set_color("white")
-            self.axes.xaxis.label.set_color("white")
-            self.axes.yaxis.label.set_color("white")
-
-            # changing colors of axes ticks
-            self.axes.tick_params(axis="x", colors="white", labelcolor="white")
-            self.axes.tick_params(axis="y", colors="white", labelcolor="white")
-
-            # changing colors of axes labels
-            self.axes.xaxis.label.set_color("white")
-            self.axes.yaxis.label.set_color("white")
-
+            self.axes_color = "white"
+            self.axes_bg_color = "#262930"
         elif theme == 'light':
-            # changing color of axes background to napari main window color
-            self.figure.patch.set_facecolor("#efebe9")
-            # changing color of plot background to napari main window color
-            self.axes.set_facecolor("#efebe9")
+            self.axes_color = "black"
+            self.axes_bg_color = "#efebe9"
+        
+        # changing color of axes background to napari main window color
+        self.figure.patch.set_facecolor(self.axes_bg_color)
+        # changing color of plot background to napari main window color
+        self.axes.set_facecolor(self.axes_bg_color)
 
-            # changing colors of all axes
-            self.axes.spines["bottom"].set_color("black")
-            self.axes.spines["top"].set_color("black")
-            self.axes.spines["right"].set_color("black")
-            self.axes.spines["left"].set_color("black")
-            self.axes.xaxis.label.set_color("black")
-            self.axes.yaxis.label.set_color("black")
+        # changing colors of all axes
+        self.axes.spines["bottom"].set_color(self.axes_color)
+        self.axes.spines["top"].set_color(self.axes_color)
+        self.axes.spines["right"].set_color(self.axes_color)
+        self.axes.spines["left"].set_color(self.axes_color)
+        self.axes.xaxis.label.set_color(self.axes_color)
+        self.axes.yaxis.label.set_color(self.axes_color)
 
-            # changing colors of axes ticks
-            self.axes.tick_params(axis="x", colors="black", labelcolor="black")
-            self.axes.tick_params(axis="y", colors="black", labelcolor="black")
+        # changing colors of axes ticks
+        self.axes.tick_params(axis="x", colors=self.axes_color, labelcolor=self.axes_color)
+        self.axes.tick_params(axis="y", colors=self.axes_color, labelcolor=self.axes_color)
 
-            # changing colors of axes labels
-            self.axes.xaxis.label.set_color("black")
-            self.axes.yaxis.label.set_color("black")
+        # changing colors of axes labels
+        self.axes.xaxis.label.set_color(self.axes_color)
+        self.axes.yaxis.label.set_color(self.axes_color)
+       
         # replace toolbar icons with dark theme icons
         self._replace_toolbar_icons()
         self.canvas.draw()
@@ -169,10 +156,7 @@ class LineBaseWidget(QWidget):
 
         Sets up callbacks for when:
         - Layer selection is changed
-        - z-step is changed
         """
-        # z-step changed in viewer
-        # self.viewer.dims.events.current_step.connect(self._draw)
         # Layer selection changed in viewer
         self.viewer.layers.selection.events.changed.connect(
             self._update_layers
@@ -228,8 +212,8 @@ class LineBaseWidget(QWidget):
         """
         x, y, x_axis_name, y_axis_name = self._get_data()
         self.axes.plot(x, y)
-        self.axes.set_xlabel(x_axis_name)
-        self.axes.set_ylabel(y_axis_name)
+        self.axes.set_xlabel(x_axis_name, color=self.axes_color)
+        self.axes.set_ylabel(y_axis_name, color=self.axes_color)
 
     def _get_data(self) -> Tuple[npt.NDArray[Any], npt.NDArray[Any], str, str]:
         """Get the plot data.

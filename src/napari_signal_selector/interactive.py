@@ -6,10 +6,9 @@ import numpy.typing as npt
 from pathlib import Path
 from matplotlib.lines import Line2D
 from matplotlib.collections import LineCollection
-from matplotlib.colors import ListedColormap, Normalize
+from matplotlib.colors import Normalize
 from .line import FeaturesLineWidget
 
-from napari_matplotlib.util import Interval
 from napari_signal_selector.utilities import generate_line_segments_array
 from matplotlib.widgets import SpanSelector
 from qtpy.QtWidgets import QWidget, QLabel, QHBoxLayout
@@ -17,18 +16,8 @@ from qtpy.QtCore import Qt
 from qtpy.QtGui import QGuiApplication
 
 from qtpy.QtWidgets import QLabel, QWidget
-from napari_matplotlib.util import Interval
 from nap_plot_tools import CustomToolbarWidget, QtColorSpinBox, CustomToolButton, cat10_mod_cmap_first_transparent
 from napari.utils.events import Event
-
-# Testing performance improvements
-# import matplotlib as mpl
-# mpl.rcParams['path.simplify'] = True
-# mpl.rcParams['path.simplify_threshold'] = 1
-# mpl.rcParams['agg.path.chunksize'] = 1000
-
-# import matplotlib.style as mplstyle
-# mplstyle.use('fast')
 
 __all__ = ["InteractiveFeaturesLineWidget"]
 ICON_ROOT = Path(__file__).parent / "icons"
@@ -45,7 +34,6 @@ class InteractiveLine2D(Line2D):
         Matplotlib Line2D object.
     """
     cmap = cat10_mod_cmap_first_transparent
-    # mpl_cmap = ListedColormap(cmap)
     normalizer = Normalize(vmin=0, vmax=cmap.N - 1)
     _default_alpha = 0.7
     _default_marker_size = 4
@@ -199,7 +187,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
     napari_matplotlib.line.InteractiveFeaturesLineWidget
         a more interactive version of the napari_matplotlib FeaturesLineWidget.
     """
-    n_layers_input = Interval(1, 1)
+    # n_layers_input = Interval(1, 1)
     # All layers that have a .features attributes
     input_layer_types = (
         napari.layers.Labels,
@@ -337,19 +325,10 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         # Ensure theme is applied
         self.setup_napari_theme(None)
 
-    def _replace_custom_toolbar_icons(self):#, theme_event: Event):
-        # if theme_event is None:
-        #     theme = self.viewer.theme
-        # else:
-        #     theme = theme_event.value
-        print('Replace toolbar buttons callabck called')
+    def _replace_custom_toolbar_icons(self):
         if hasattr(self, 'custom_toolbar'):
-            print('Replacing custom toolbar icons')
-            print(self.custom_toolbar.buttons)
-            print(self.viewer.theme)
             icon_dir = self._get_path_to_icon()
             for button_name, button in self.custom_toolbar.buttons.items():
-                print(button_name)
                 button.update_icon_path(default_icon_path=Path(
                     icon_dir / f"{button_name}.png").__str__(), checked_icon_path=Path(icon_dir / f"{button_name}_checked.png").__str__())
             self.show_selected_button.update_icon_path(default_icon_path=Path(icon_dir / "hide_selected.png").__str__(),
@@ -361,7 +340,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
 
     def setup_napari_theme(self, theme_event: Event):
         super().setup_napari_theme(theme_event)
-        self._replace_custom_toolbar_icons()#theme_event)
+        self._replace_custom_toolbar_icons()
 
 
     def _show_selected_signals(self, checked):
@@ -417,13 +396,14 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         pass
         # TODO: update vertical line over plot (consider multithreading for performance, check details here:
         #  - https://napari.org/dev/guides/threading.html#multithreading-in-napari)
-        # if self.viewer.dims.ndim > 2:
-        #     current_time_point = self.viewer.dims.current_step[0]
-        #     if self.vertical_time_line is None:
-        #         self.vertical_time_line = self.axes.axvline(x=current_time_point, color='white', ls='--')
-        #     else:
-        #         self.vertical_time_line.set_xdata(current_time_point)
-        #     self.canvas.figure.canvas.draw_idle()
+        if self.viewer.dims.ndim > 2:
+            current_time_point = self.viewer.dims.current_step[0]
+            print(f'Current time point: {current_time_point}')
+            if self.vertical_time_line is None:
+                self.vertical_time_line = self.axes.axvline(x=current_time_point, color='white', ls='--')
+            else:
+                self.vertical_time_line.set_xdata([current_time_point])
+            self.canvas.draw_idle()
 
     def on_update_layers(self) -> None:
         """
@@ -763,12 +743,12 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             # If labels_to_keep is None, show all labels
             labels_layer_colormap.colors[:, -1] = 1
         else:
-            labels_to_hide = [l for l in np.arange(1, labels_layer.data.max()+1) if l not in labels_to_keep]
+            labels_to_hide = [int(l) for l in np.arange(1, labels_layer.data.max()+1) if l not in labels_to_keep]
             print(f'Labels to keep: {labels_to_keep}')
             print(f'Labels to hide: {labels_to_hide}')
             labels_layer_colormap.colors[labels_to_hide, -1] = 0 
         labels_layer.colormap = labels_layer_colormap
-        labels_layer.refresh()
+        labels_layer.refresh(thumbnail=True, data_displayed=True, force=True)
 
     def _get_data(self) -> Tuple[npt.NDArray[Any], npt.NDArray[Any], str, str]:
         """Get the plot data.
@@ -798,8 +778,6 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         for label, sub_df in grouped:
             x.append(sub_df[self.x_axis_key].values)
             y.append(sub_df[self.y_axis_key].values)
-        # x = np.array([sub_df[self.x_axis_key].values for label, sub_df in grouped]).T.squeeze(axis=-1)
-        # y = np.array([sub_df[self.y_axis_key].values for label, sub_df in grouped]).T.squeeze(axis=-1)
 
         x_axis_name = str(self.x_axis_key)
         y_axis_name = str(self.y_axis_key)
@@ -862,7 +840,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             if hasattr(self, 'show_predictions_button'):
                 if self.show_predictions_button.isChecked():
                     self._show_predictions(True)
-            self.axes.set_xlabel(x_axis_name)
-            self.axes.set_ylabel(y_axis_name)
+            self.axes.set_xlabel(x_axis_name, color=self.axes_color)
+            self.axes.set_ylabel(y_axis_name, color=self.axes_color)
             self.axes.autoscale(enable=True, axis='both', tight=True)
             self.canvas.draw()
