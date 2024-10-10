@@ -404,6 +404,9 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         # TODO: update vertical line over plot (consider multithreading for performance, check details here:
         #  - https://napari.org/dev/guides/threading.html#multithreading-in-napari)
         if self.viewer.dims.ndim > 2:
+            # Do not try to plot if no layers are present yet
+            if len(self.layers) == 0:
+                return
             self.draw()
 
     def _update_time_line(self):
