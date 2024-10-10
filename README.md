@@ -102,13 +102,21 @@ Also, with the selection tool enbaled, by holding 'SHIFT' and left-clicking, you
 
 ### Exporting Annotations
 
-The table with annotations can be displayed in napari using the 'Show table' widget from [napari-skimage-regionprops plugin](https://github.com/haesleinhuepf/napari-skimage-regionprops#napari-skimage-regionprops-nsr), which is available under `Tools > Measurements > Show Table (nsr)`.
+The table with annotations can be displayed in napari using the 'Show table' widget from [napari-skimage-regionprops plugin](https://github.com/haesleinhuepf/napari-skimage-regionprops#napari-skimage-regionprops-nsr), which is available under `Tools > Measurements > Show Table (nsr)`. This plugin may require a specific napari version, so check its documentation for more details.
 
 ![](https://github.com/zoccoler/napari-signal-selector/raw/main/images/table_view.gif)
 
 By the way, with `'show selected'` checked, you can click on a label row in the table and see the corresponding label in the image **...and** in the plotter!
 
 To export the table, click on `'Save as csv...'`.
+
+Another option is to run the following code in the napari console (replace `'Labels'` with the name of your Labels layer and `'annotations.csv'` with the desired file name or file path):
+
+```python
+import pandas as pd
+df = viewer.layers['Labels'].data.features
+df.to_csv('annotations.csv')
+```
 
 ## Installation
 
