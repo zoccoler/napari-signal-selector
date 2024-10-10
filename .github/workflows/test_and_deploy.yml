@@ -63,8 +63,8 @@ jobs:
       - name: Coverage
         uses: codecov/codecov-action@v3
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}- name: Coverage
-        uses: codecov/codecov-action@v3
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: zoccoler/napari-signal-selector
 
   # taken from https://packaging.python.org/en/latest/guides/publishing-package-distribution-releases-using-github-actions-ci-cd-workflows/
   build:

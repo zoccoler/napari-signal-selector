@@ -10,7 +10,7 @@ def load_flashing_polygons_data():
     DATA_PATH = Path(__file__).parent / "data"
    
     timelapse = imread(DATA_PATH / "synthetic_timelapse.tif")
-    labels = imread(DATA_PATH / "synthetic_labels.tif")
+    labels = imread(DATA_PATH / "synthetic_labels.tif").astype('uint32')
     table = read_csv(DATA_PATH / "table_synthetic_data_with_annotations.csv")
     return [(timelapse, {'name': 'Synthetic Timelapse'}), 
             (labels, {'name': 'Synthetic Labels', 'features': table, 'opacity': 0.4}, 'labels')]

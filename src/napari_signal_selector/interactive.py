@@ -6,10 +6,9 @@ import numpy.typing as npt
 from pathlib import Path
 from matplotlib.lines import Line2D
 from matplotlib.collections import LineCollection
-from matplotlib.colors import ListedColormap, Normalize
+from matplotlib.colors import Normalize
 from .line import FeaturesLineWidget
 
-from napari_matplotlib.util import Interval
 from napari_signal_selector.utilities import generate_line_segments_array
 from matplotlib.widgets import SpanSelector
 from qtpy.QtWidgets import QWidget, QLabel, QHBoxLayout
@@ -17,8 +16,8 @@ from qtpy.QtCore import Qt
 from qtpy.QtGui import QGuiApplication
 
 from qtpy.QtWidgets import QLabel, QWidget
-from napari_matplotlib.util import Interval
 from nap_plot_tools import CustomToolbarWidget, QtColorSpinBox, CustomToolButton, cat10_mod_cmap_first_transparent
+from napari.utils.events import Event
 
 __all__ = ["InteractiveFeaturesLineWidget"]
 ICON_ROOT = Path(__file__).parent / "icons"
@@ -35,7 +34,6 @@ class InteractiveLine2D(Line2D):
         Matplotlib Line2D object.
     """
     cmap = cat10_mod_cmap_first_transparent
-    # mpl_cmap = ListedColormap(cmap)
     normalizer = Normalize(vmin=0, vmax=cmap.N - 1)
     _default_alpha = 0.7
     _default_marker_size = 4
@@ -108,7 +106,7 @@ class InteractiveLine2D(Line2D):
     @property
     def annotations_visible(self):
         return self._annotations_scatter.get_visible()
-    
+
     @annotations_visible.setter
     def annotations_visible(self, value):
         self._annotations_scatter.set_visible(value)
@@ -127,11 +125,11 @@ class InteractiveLine2D(Line2D):
         self._predictions_linecollection.set_array(
             predictions_with_interpolation)
         self._canvas.draw_idle()
-    
+
     @property
     def predictions_visible(self):
         return self._predictions_linecollection.get_visible()
-    
+
     @predictions_visible.setter
     def predictions_visible(self, value):
         self._predictions_linecollection.set_visible(value)
@@ -150,8 +148,6 @@ class InteractiveLine2D(Line2D):
         else:
             self.set_marker('o')
             self.set_markersize(self._default_marker_size)
-            # annotation_color = self.cmap[value]
-            # self.set_markeredgecolor(annotation_color)
             self.set_markeredgewidth(1)
             self.set_markevery(list_of_values)
         self._canvas.draw_idle()
@@ -174,6 +170,7 @@ class InteractiveLine2D(Line2D):
             self._axes.add_artist(self._annotations_scatter)
             self._axes.add_collection(self._predictions_linecollection)
 
+
 class InteractiveFeaturesLineWidget(FeaturesLineWidget):
     """InteractiveFeaturesLineWidget class.
 
@@ -189,7 +186,6 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
     napari_matplotlib.line.InteractiveFeaturesLineWidget
         a more interactive version of the napari_matplotlib FeaturesLineWidget.
     """
-    n_layers_input = Interval(1, 1)
     # All layers that have a .features attributes
     input_layer_types = (
         napari.layers.Labels,
@@ -213,29 +209,56 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         # Set callback
         self.signal_class_color_spinbox.connect(
             self._change_signal_class)
-        
+
         ### Custom toolbar ###
         self.custom_toolbar = CustomToolbarWidget(self)
         ### Add toolbuttons to toolbar ###
-        self.custom_toolbar.add_custom_button(name='select', tooltip="Enable or disable line selection", default_icon_path=Path(
-            ICON_ROOT / "select.png").__str__(), callback=self.enable_line_selections, checkable=True, checked_icon_path=Path(ICON_ROOT / "select_checked.png").__str__())
-        self.custom_toolbar.add_custom_button(name='span_select', tooltip="Enable or disable span selection", default_icon_path=Path(
-            ICON_ROOT / "span_select.png").__str__(), callback=self.enable_span_selections, checkable=True, checked_icon_path=Path(ICON_ROOT / "span_select_checked.png").__str__())
-        self.custom_toolbar.add_custom_button(name='add_annotation', tooltip="Add selected lines to current signal class", default_icon_path=Path(
-            ICON_ROOT / "add_annotation.png").__str__(), callback=self.add_annotation, checkable=False)
-        self.custom_toolbar.add_custom_button(name='delete_annotation', tooltip="Delete selected lines class annotation", default_icon_path=Path(
-            ICON_ROOT / "delete_annotation.png").__str__(), callback=self.remove_annotation, checkable=False)
-
+        icon_dir = self._get_path_to_icon()
+        self.custom_toolbar.add_custom_button(name='select', tooltip="Enable or disable line selection",
+                                              default_icon_path=Path(
+                                                  icon_dir / "select.png").__str__(),
+                                              callback=self.enable_line_selections,
+                                              checkable=True,
+                                              checked_icon_path=Path(icon_dir / "select_checked.png").__str__())
+        self.custom_toolbar.add_custom_button(name='span_select', tooltip="Enable or disable span selection",
+                                              default_icon_path=Path(
+                                                  icon_dir / "span_select.png").__str__(),
+                                              callback=self.enable_span_selections,
+                                              checkable=True,
+                                              checked_icon_path=Path(icon_dir / "span_select_checked.png").__str__())
+        self.custom_toolbar.add_custom_button(name='add_annotation', tooltip="Add selected lines to current signal class",
+                                              default_icon_path=Path(
+                                                  icon_dir / "add_annotation.png").__str__(),
+                                              callback=self.add_annotation,
+                                              checkable=False)
+        self.custom_toolbar.add_custom_button(name='delete_annotation', tooltip="Delete selected lines class annotation",
+                                              default_icon_path=Path(
+                                                  icon_dir / "delete_annotation.png").__str__(),
+                                              callback=self.remove_annotation,
+                                              checkable=False)
         ## Signal Selection Tools ##
         self.signal_selection_tools_layout = QHBoxLayout()
         self.signal_selection_tools_layout.addWidget(self.custom_toolbar)
         self.signal_selection_tools_layout.addWidget(QLabel('Signal class:'))
         self.signal_selection_tools_layout.addWidget(
             self.signal_class_color_spinbox)
+        # Add show/hide selected button
+        self.show_selected_button = CustomToolButton(
+            default_icon_path=Path(icon_dir / "show_all.png").__str__(),
+            checked_icon_path=Path(icon_dir / "show_selected.png").__str__(),
+        )
+        self.show_selected_button.setToolTip(
+            'Show all signals or show only selected signals (including corresponding labels in Labels layer)')
+        self.show_selected_button.setIconSize(32)
+        self.show_selected_button.toggled.connect(
+            self._show_selected_signals)
+        self.signal_selection_tools_layout.addWidget(self.show_selected_button)
         # Add show/hide annotations button
         self.show_annotations_button = CustomToolButton(
-            default_icon_path=Path(ICON_ROOT / "hide_annotations.png").__str__(),
-            checked_icon_path=Path(ICON_ROOT / "show_annotations.png").__str__(),
+            default_icon_path=Path(
+                icon_dir / "hide_annotations.png").__str__(),
+            checked_icon_path=Path(
+                icon_dir / "show_annotations.png").__str__(),
         )
         self.show_annotations_button.setToolTip(
             'Show or hide annotations')
@@ -243,26 +266,30 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self.show_annotations_button.toggled.connect(
             self._show_annotations)
         self.show_annotations_button.setChecked(True)
-        self.signal_selection_tools_layout.addWidget(self.show_annotations_button)
+        self.signal_selection_tools_layout.addWidget(
+            self.show_annotations_button)
         # Add show/hide predictions button
         self.show_predictions_button = CustomToolButton(
-            default_icon_path=Path(ICON_ROOT / "hide_predictions.png").__str__(),
-            checked_icon_path=Path(ICON_ROOT / "show_predictions.png").__str__(),
+            default_icon_path=Path(
+                icon_dir / "hide_predictions.png").__str__(),
+            checked_icon_path=Path(
+                icon_dir / "show_predictions.png").__str__(),
         )
         self.show_predictions_button.setToolTip(
             'Show or hide predictions')
         self.show_predictions_button.setIconSize(32)
         self.show_predictions_button.toggled.connect(
             self._show_predictions)
-        self.signal_selection_tools_layout.addWidget(self.show_predictions_button)
-        
+        self.signal_selection_tools_layout.addWidget(
+            self.show_predictions_button)
+
         # Add stretch to the right to push buttons to the left
         self.signal_selection_tools_layout.addStretch(1)
         # Set the left margin to 0 and spacing to 0
-        self.signal_selection_tools_layout.setContentsMargins(0,0,0,0)
+        self.signal_selection_tools_layout.setContentsMargins(0, 0, 0, 0)
         self.signal_selection_tools_layout.setSpacing(0)
 
-        self.layout().insertLayout(2, self.signal_selection_tools_layout)
+        self.layout().insertLayout(1, self.signal_selection_tools_layout)
         self.layout().setContentsMargins(0, 0, 0, 0)
 
         # Create pick event connection id (used by line selector)
@@ -288,18 +315,55 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         # Always enable mouse clicks to clear selections (right button)
         self._enable_mouse_clicks(True)
 
-        # z-step changed in viewer
-        # Disconnect draw event on z-slider callback (improves performance)
-        current_step_callbacks = self.viewer.dims.events.current_step.callbacks
-        draw_callback_tuple = [
-            callback for callback in current_step_callbacks if callback[1] == '_draw'][0]
-        self.viewer.dims.events.current_step.disconnect(draw_callback_tuple)
         # Connect new callback
         self.viewer.dims.events.current_step.connect(
             self.on_dims_slider_change)
-        
+
         # Load previous annotations if any
         self.update_line_layout_from_column('Annotations')
+        # Ensure theme is applied
+        self.setup_napari_theme(None)
+
+    def _replace_custom_toolbar_icons(self):
+        if hasattr(self, 'custom_toolbar'):
+            icon_dir = self._get_path_to_icon()
+            for button_name, button in self.custom_toolbar.buttons.items():
+                button.update_icon_path(default_icon_path=Path(
+                    icon_dir / f"{button_name}.png").__str__(), checked_icon_path=Path(icon_dir / f"{button_name}_checked.png").__str__())
+            self.show_selected_button.update_icon_path(default_icon_path=Path(icon_dir / "show_all.png").__str__(),
+                                                       checked_icon_path=Path(icon_dir / "show_selected.png").__str__())
+            self.show_annotations_button.update_icon_path(default_icon_path=Path(icon_dir / "hide_annotations.png").__str__(),
+                                                          checked_icon_path=Path(icon_dir / "show_annotations.png").__str__())
+            self.show_predictions_button.update_icon_path(default_icon_path=Path(icon_dir / "hide_predictions.png").__str__(),
+                                                          checked_icon_path=Path(icon_dir / "show_predictions.png").__str__())
+
+    def setup_napari_theme(self, theme_event: Event):
+        super().setup_napari_theme(theme_event)
+        if hasattr(self, 'vertical_time_line'):
+            if self.vertical_time_line is not None:
+                self.vertical_time_line.set_color(self.axes_color)
+        self._replace_custom_toolbar_icons()
+
+    def _show_selected_signals(self, checked):
+        """Show or hide selected signals corresponding labels in Labels layer.
+
+        Parameters
+        ----------
+        checked : bool
+            True if selected signals are to be shown, False otherwise.
+        """
+        if checked:
+            # If 'Show Selected' label from napari labels layer is checked, uncheck it
+            # These must be mutually exclusive
+            if self.layers[0].show_selected_label == True:
+                self.layers[0].show_selected_label = False
+            if len(self._selected_lines) == 0:
+                self.mask_labels(None)
+            else:
+                self.mask_labels(
+                    labels_to_keep=[l.label_from_napari_layer for l in self._selected_lines])
+        else:
+            self.mask_labels(None)
 
     def _show_annotations(self, checked):
         """Show or hide annotations.
@@ -320,7 +384,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         else:
             for line in self._lines:
                 line.annotations_visible = False
-    
+
     def _show_predictions(self, checked):
         """Show or hide predictions.
 
@@ -337,16 +401,22 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                 line.predictions_visible = False
 
     def on_dims_slider_change(self) -> None:
-        pass
         # TODO: update vertical line over plot (consider multithreading for performance, check details here:
         #  - https://napari.org/dev/guides/threading.html#multithreading-in-napari)
-        # if self.viewer.dims.ndim > 2:
-        #     current_time_point = self.viewer.dims.current_step[0]
-        #     if self.vertical_time_line is None:
-        #         self.vertical_time_line = self.axes.axvline(x=current_time_point, color='white', ls='--')
-        #     else:
-        #         self.vertical_time_line.set_xdata(current_time_point)
-        #     self.canvas.figure.canvas.draw_idle()
+        if self.viewer.dims.ndim > 2:
+            # Do not try to plot if no layers are present yet
+            if len(self.layers) == 0:
+                return
+            self.draw()
+
+    def _update_time_line(self):
+        current_time_point = self.viewer.dims.current_step[0]
+        if self.vertical_time_line is None:
+            self.vertical_time_line = self.axes.axvline(
+                x=current_time_point, color=self.axes_color, ls='--')
+        else:
+            self.vertical_time_line.set_xdata([current_time_point])
+        self.axes.add_line(self.vertical_time_line)
 
     def on_update_layers(self) -> None:
         """
@@ -368,6 +438,12 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         event : napari.utils.events.Event
             napari event.
         """
+        if event.type == 'show_selected_label':
+            if event.show_selected_label == True:
+                if self.show_selected_button.isChecked():
+                    # If show_selected_button is checked, uncheck it
+                    # These must be mutually exclusive
+                    self.show_selected_button.setChecked(False)
         self._draw()
 
     def add_annotation(self):
@@ -557,6 +633,13 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                 # Add line to selected lines
                 if line not in self._selected_lines:
                     self._selected_lines.append(line)
+            # If show selected button is checked, redraw plot to display only selected lines as the user selects them
+            if self.show_selected_button.isChecked():
+                self.clear()
+                # Show corresponding labels in Labels layer if show_selected_button is checked
+                self._show_selected_signals(True)
+                # Call draw to show only selected lines (it needs to be called to eventually hide non-selected lines)
+                self.draw()
         self.canvas.figure.canvas.draw_idle()
 
     def _select_all_lines(self):
@@ -662,6 +745,35 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             line.annotations = np.zeros(line.get_xdata().shape).tolist()
         return
 
+    def mask_labels(self, labels_to_keep=None):
+        """Mask labels in a labels layer.
+
+        Parameters
+        ----------
+        labels_to_keep : list of int, optional
+            List of labels to keep. If None, all labels are displayed (clears previously masked labels). If empty list, no change is applied.
+        """
+        from napari.utils import colormaps
+        # If emtpy list, return (no labels selected)
+        if labels_to_keep == []:
+            return
+        # Get the first layer (labels layer)
+        labels_layer = self.layers[0]
+        labels_layer_colormap = labels_layer.colormap
+        # Guarantee that the colormap has enough colors to represent all the labels
+        if len(labels_layer_colormap.colors) <= labels_layer.data.max():
+            labels_layer_colormap = colormaps.label_colormap(
+                labels_layer.data.max() + 1)
+            labels_layer.colormap = labels_layer_colormap
+        if labels_to_keep is None:
+            # If labels_to_keep is None, show all labels
+            labels_layer_colormap.colors[:, -1] = 1
+        else:
+            labels_to_hide = [int(l) for l in np.arange(
+                1, labels_layer.data.max()+1) if l not in labels_to_keep]
+            labels_layer_colormap.colors[labels_to_hide, -1] = 0
+        labels_layer.colormap = labels_layer_colormap
+
     def _get_data(self) -> Tuple[npt.NDArray[Any], npt.NDArray[Any], str, str]:
         """Get the plot data.
 
@@ -690,8 +802,6 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         for label, sub_df in grouped:
             x.append(sub_df[self.x_axis_key].values)
             y.append(sub_df[self.y_axis_key].values)
-        # x = np.array([sub_df[self.x_axis_key].values for label, sub_df in grouped]).T.squeeze(axis=-1)
-        # y = np.array([sub_df[self.y_axis_key].values for label, sub_df in grouped]).T.squeeze(axis=-1)
 
         x_axis_name = str(self.x_axis_key)
         y_axis_name = str(self.y_axis_key)
@@ -722,6 +832,10 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             for j, (signal_x, signal_y) in enumerate(zip(x, y)):
                 if self.layers[0].show_selected_label and j != self.layers[0].selected_label - 1:
                     continue
+                if hasattr(self, 'show_selected_button') and self.show_selected_button.isChecked() and len(self._selected_lines) > 0 and j not in [l.label_from_napari_layer - 1 for l in self._selected_lines]:
+                    continue
+                # if self.show_selected_button.isChecked() and j not in [l.label_from_napari_layer for l in self._selected_lines]:
+                #     continue
                 label_name = self.y_axis_key
 
                 if update_lines:
@@ -754,7 +868,10 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             if hasattr(self, 'show_predictions_button'):
                 if self.show_predictions_button.isChecked():
                     self._show_predictions(True)
-            self.axes.set_xlabel(x_axis_name)
-            self.axes.set_ylabel(y_axis_name)
+
+            self.axes.set_xlabel(x_axis_name, color=self.axes_color)
+            self.axes.set_ylabel(y_axis_name, color=self.axes_color)
             self.axes.autoscale(enable=True, axis='both', tight=True)
+            if hasattr(self, 'vertical_time_line'):
+                self._update_time_line()
             self.canvas.draw()
