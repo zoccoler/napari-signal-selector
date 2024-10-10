@@ -8,7 +8,7 @@
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-signal-selector)](https://napari-hub.org/plugins/napari-signal-selector)
 [![DOI](https://zenodo.org/badge/661588266.svg)](https://zenodo.org/doi/10.5281/zenodo.10041219)
 
-An interactive signal selector and annotator for napari, based on [napari-matplotlib](https://github.com/matplotlib/napari-matplotlib#napari-matplotlib).
+An interactive signal selector and annotator for napari, based on [matplotlib](https://matplotlib.org/stable/).
 
 [Jump to Intallation](#installation)
 
