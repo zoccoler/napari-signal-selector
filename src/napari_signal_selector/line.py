@@ -189,6 +189,8 @@ class LineBaseWidget(QWidget):
         Update the ``layers`` attribute with currently selected layers and re-draw.
         """
         self.layers = list(self.viewer.layers.selection)
+        if len(self.layers) == 0:
+            return
         self.layers = sorted(self.layers, key=lambda layer: layer.name)
         self.on_update_layers()
         if self._valid_layer_selection:
