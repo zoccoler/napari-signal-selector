@@ -5,4 +5,5 @@ recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
 
 include src/napari_signal_selector/data/*
-include src/napari_signal_selector/icons/*
+include src/napari_signal_selector/icons/black/*
+include src/napari_signal_selector/icons/white/*
