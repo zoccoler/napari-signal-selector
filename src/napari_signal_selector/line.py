@@ -68,7 +68,8 @@ class LineBaseWidget(QWidget):
         self.setLayout(QVBoxLayout())
         self.layout().addWidget(self.toolbar)
         self.layout().addWidget(self.canvas)
-
+        # set minimum layout size
+        self.setMinimumSize(400, 400)
         self._setup_callbacks()
         self.layers: list[napari.layers.Layer] = []
 
