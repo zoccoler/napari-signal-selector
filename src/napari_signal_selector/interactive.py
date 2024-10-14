@@ -418,11 +418,11 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             self.vertical_time_line.set_xdata([current_time_point])
         self.axes.add_line(self.vertical_time_line)
 
-    def on_update_layers(self) -> None:
+    def on_update_layers(self, event: Event = None) -> None:
         """
         Called when the layer selection changes by ``self.update_layers()``.
         """
-        super().on_update_layers()
+        super().on_update_layers(event)
         if len(self.layers) > 0:
             if 'show_selected_label' in self.layers[0].events.emitters.keys():
                 self.layers[0].events.show_selected_label.connect(

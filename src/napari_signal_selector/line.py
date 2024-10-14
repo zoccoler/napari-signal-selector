@@ -193,7 +193,7 @@ class LineBaseWidget(QWidget):
         if len(self.layers) == 0:
             return
         self.layers = sorted(self.layers, key=lambda layer: layer.name)
-        self.on_update_layers()
+        self.on_update_layers(event)
         if self._valid_layer_selection:
             self._draw()
 
@@ -231,6 +231,14 @@ class LineBaseWidget(QWidget):
             The label to display on the x axis
         y_axis_name: str
             The label to display on the y axis
+        """
+        raise NotImplementedError
+    
+    def on_update_layers(self, event: napari.utils.events.Event) -> None:
+        """
+        Called when the layer selection changes by ``self.update_layers()``.
+
+        This must be implemented on the subclass.
         """
         raise NotImplementedError
     
@@ -349,6 +357,8 @@ class FeaturesLineWidget(LineBaseWidget):
             self.layout().addWidget(QLabel(f"{dim}-axis:"))
             self.layout().addWidget(self._selectors[dim])
 
+
+        self._current_selectors_choices = {}
         self._update_layers(None)
 
     @property
@@ -497,13 +507,54 @@ class FeaturesLineWidget(LineBaseWidget):
 
         return x, y, x_axis_name, y_axis_name
 
-    def on_update_layers(self) -> None:
+    def on_update_layers(self, event: napari.utils.events.Event) -> None:
         """
         Called when the layer selection changes by ``self.update_layers()``.
         """
-        # Clear combobox
+        # if event.removed:
+        #     for layer in event.removed:
+        if event is not None:
+            if event.added:
+                for layer in event.added:
+                    self._load_selectors_choices(layer)
+            if event.removed:
+                for layer in event.removed:
+                    self._store_selectors_choices(layer)
+                self._update_comboboxes()
+
+    def _update_comboboxes(self):
+        """
+        Update the comboboxes with the current choices.
+        """
         for dim in ["object_id", "x", "y"]:
             while self._selectors[dim].count() > 0:
                 self._selectors[dim].removeItem(0)
             # Add keys for newly selected layer
             self._selectors[dim].addItems(self._get_valid_axis_keys())
+            # Set the current key if it was saved
+            if dim in self._current_selectors_choices:
+                self._selectors[dim].setCurrentText(self._current_selectors_choices[dim])
+
+    def _store_selectors_choices(self, layer):
+        """
+        Store selectors choices associated with the layer.
+        """
+        if not self._valid_layer_selection:
+            return
+        layer.metadata["line_plot_choices"] = {
+            "object_id": self.object_id_axis_key,
+            "x": self.x_axis_key,
+            "y": self.y_axis_key,
+        }
+
+    def _load_selectors_choices(self, layer):
+        """
+        Load selectors choices associated with the layer.
+        """
+        if not self._valid_layer_selection:
+            return
+        if "line_plot_choices" not in layer.metadata:
+            return
+        self._current_selectors_choices = layer.metadata["line_plot_choices"]
+
+
