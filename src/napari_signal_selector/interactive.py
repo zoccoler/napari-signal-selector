@@ -863,10 +863,12 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             # Check if annotations are to be shown
             if hasattr(self, 'show_annotations_button'):
                 if self.show_annotations_button.isChecked():
+                    self.update_line_layout_from_column('Annotations')
                     self._show_annotations(True)
             # Check if predictions are to be shown
             if hasattr(self, 'show_predictions_button'):
                 if self.show_predictions_button.isChecked():
+                    self.update_line_layout_from_column('Predictions')
                     self._show_predictions(True)
 
             self.axes.set_xlabel(x_axis_name, color=self.axes_color)
