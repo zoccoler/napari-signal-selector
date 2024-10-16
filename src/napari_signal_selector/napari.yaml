@@ -11,6 +11,7 @@ contributions:
     - id: napari-signal-selector.make_inter_features_line_widget
       python_name: napari_signal_selector.interactive:InteractiveFeaturesLineWidget
       title: Signal Selector
+
   sample_data:
     - command: napari-signal-selector.load_flashing_polygons_data
       display_name: Flashing Polygons (2D+t)
@@ -18,7 +19,20 @@ contributions:
     - command: napari-signal-selector.load_blinking_polygons_data
       display_name: Blinking Polygons (2D+t)
       key: blinking_polygons
+
   widgets:
     - command: napari-signal-selector.make_inter_features_line_widget
-      display_name: Signal Selector
+      display_name: Signal Selector and Annotator
+
+  menus:
+    napari/layers/visualize:
+      - submenu: signals_submenu
+    napari/layers/annotate:
+      - submenu: signals_submenu
+    signals_submenu:
+      - command: napari-signal-selector.make_inter_features_line_widget
+
+  submenus:
+    - id: signals_submenu
+      label: Signals / Time-Series
 
