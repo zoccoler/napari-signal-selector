@@ -8,4 +8,4 @@ def test_open_sample_data():
     # Check that example labels shape is correct
     assert layer_data_tuple[1][0].shape == (100, 100)
     # Check that example labels features (table) shape is correct
-    assert layer_data_tuple[1][1]['features'].shape == (15000, 4)
+    assert layer_data_tuple[1][1]['features'].shape == (15000, 3)
