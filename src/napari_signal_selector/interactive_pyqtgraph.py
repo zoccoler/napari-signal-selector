@@ -221,28 +221,28 @@ class PlotterWindow(QtWidgets.QMainWindow):
         self.toolbar = self.addToolBar("main_toolbar")
         self.span_action = QtWidgets.QAction(self)
         span_icon = QtGui.QIcon()
-        span_icon.addFile(str(ICON_ROOT / "black" / "span_select.png"),
+        span_icon.addFile(str(ICON_ROOT / "white" / "span_select.png"),
                           mode=QtGui.QIcon.Normal, state=QtGui.QIcon.Off)
-        span_icon.addFile(str(ICON_ROOT / "black" / "span_select_checked.png"),
+        span_icon.addFile(str(ICON_ROOT / "white" / "span_select_checked.png"),
                           mode=QtGui.QIcon.Normal, state=QtGui.QIcon.On)
         self.span_action.setIcon(span_icon)
         self.span_action.setText("Span Selector")
         self.span_action.setCheckable(True)
         self.toolbar.addAction(self.span_action)
 
-        self.apply_action = QtWidgets.QAction(QtGui.QIcon(str(ICON_ROOT / "black" / "add_annotation.png")),
+        self.apply_action = QtWidgets.QAction(QtGui.QIcon(str(ICON_ROOT / "white" / "add_annotation.png")),
                                               "Apply Annotations", self)
         self.toolbar.addAction(self.apply_action)
 
-        self.delete_action = QtWidgets.QAction(QtGui.QIcon(str(ICON_ROOT / "black" / "delete_annotation.png")),
+        self.delete_action = QtWidgets.QAction(QtGui.QIcon(str(ICON_ROOT / "white" / "delete_annotation.png")),
                                                "Delete Annotations", self)
         self.toolbar.addAction(self.delete_action)
 
         self.show_selected_action = QtWidgets.QAction(self)
         show_selected_icon = QtGui.QIcon()
-        show_selected_icon.addFile(str(ICON_ROOT / "black" / "show_all.png"),
+        show_selected_icon.addFile(str(ICON_ROOT / "white" / "show_all.png"),
                                    mode=QtGui.QIcon.Normal, state=QtGui.QIcon.Off)
-        show_selected_icon.addFile(str(ICON_ROOT / "black" / "show_selected.png"),
+        show_selected_icon.addFile(str(ICON_ROOT / "white" / "show_selected.png"),
                                    mode=QtGui.QIcon.Normal, state=QtGui.QIcon.On)
         self.show_selected_action.setIcon(show_selected_icon)
         self.show_selected_action.setText("Show Only Selected")
@@ -251,9 +251,9 @@ class PlotterWindow(QtWidgets.QMainWindow):
 
         self.show_annotations_action = QtWidgets.QAction(self)
         show_anno_icon = QtGui.QIcon()
-        show_anno_icon.addFile(str(ICON_ROOT / "black" / "hide_annotations.png"),
+        show_anno_icon.addFile(str(ICON_ROOT / "white" / "hide_annotations.png"),
                                mode=QtGui.QIcon.Normal, state=QtGui.QIcon.Off)
-        show_anno_icon.addFile(str(ICON_ROOT / "black" / "show_annotations.png"),
+        show_anno_icon.addFile(str(ICON_ROOT / "white" / "show_annotations.png"),
                                mode=QtGui.QIcon.Normal, state=QtGui.QIcon.On)
         self.show_annotations_action.setIcon(show_anno_icon)
         self.show_annotations_action.setText("Show Annotations")
@@ -263,9 +263,9 @@ class PlotterWindow(QtWidgets.QMainWindow):
 
         self.show_predictions_action = QtWidgets.QAction(self)
         show_pred_icon = QtGui.QIcon()
-        show_pred_icon.addFile(str(ICON_ROOT / "black" / "hide_predictions.png"),
+        show_pred_icon.addFile(str(ICON_ROOT / "white" / "hide_predictions.png"),
                                mode=QtGui.QIcon.Normal, state=QtGui.QIcon.Off)
-        show_pred_icon.addFile(str(ICON_ROOT / "black" / "show_predictions.png"),
+        show_pred_icon.addFile(str(ICON_ROOT / "white" / "show_predictions.png"),
                                mode=QtGui.QIcon.Normal, state=QtGui.QIcon.On)
         self.show_predictions_action.setIcon(show_pred_icon)
         self.show_predictions_action.setText("Show Predictions")
