@@ -7,9 +7,9 @@ from pathlib import Path
 from matplotlib.lines import Line2D
 from matplotlib.collections import LineCollection
 from matplotlib.colors import Normalize
-from .line import FeaturesLineWidget
+from ._line import FeaturesLineWidget
 
-from napari_signal_selector.utilities import generate_line_segments_array
+from ._utilities import generate_line_segments_array
 from matplotlib.widgets import SpanSelector
 from qtpy.QtWidgets import QWidget, QLabel, QHBoxLayout
 from qtpy.QtCore import Qt
