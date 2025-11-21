@@ -39,10 +39,11 @@ class InteractiveLine2D(Line2D):
     _default_marker_size = 4
 
     def __init__(self, *args, axes=None, canvas=None, label_from_napari_layer, color_from_napari_layer,
-                 selected=False, annotations=None, predictions=None, span_indices=None, **kwargs, ):
+                 selected=False, annotations=None, predictions=None, span_indices=None, parent_widget=None, **kwargs, ):
         super().__init__(*args, **kwargs)
         self._axes = axes
         self._canvas = canvas
+        self._parent_widget = parent_widget
         self.label_from_napari_layer = label_from_napari_layer
         self.color_from_napari_layer = color_from_napari_layer
         self._selected = selected
@@ -90,6 +91,9 @@ class InteractiveLine2D(Line2D):
             self.set_linestyle('-')
             self.set_alpha(self._default_alpha)
             self.set_linewidth(1)
+        # Invalidate blitting background cache when selection changes
+        if self._parent_widget is not None:
+            self._parent_widget.vertical_time_line_background = None
         self._canvas.draw_idle()
 
     @property
@@ -101,6 +105,9 @@ class InteractiveLine2D(Line2D):
         self._annotations = list_of_values
         # Update scatter plot array with annotations (which yield marker colors)
         self._annotations_scatter.set_array(self._annotations)
+        # Invalidate blitting background cache when annotations change
+        if self._parent_widget is not None:
+            self._parent_widget.vertical_time_line_background = None
         self._canvas.draw_idle()
 
     @property
@@ -110,6 +117,9 @@ class InteractiveLine2D(Line2D):
     @annotations_visible.setter
     def annotations_visible(self, value):
         self._annotations_scatter.set_visible(value)
+        # Invalidate blitting background cache when visibility changes
+        if self._parent_widget is not None:
+            self._parent_widget.vertical_time_line_background = None
         self._canvas.draw_idle()
 
     @property
@@ -124,6 +134,9 @@ class InteractiveLine2D(Line2D):
         # Update line collection plot array with predictions
         self._predictions_linecollection.set_array(
             predictions_with_interpolation)
+        # Invalidate blitting background cache when predictions change
+        if self._parent_widget is not None:
+            self._parent_widget.vertical_time_line_background = None
         self._canvas.draw_idle()
 
     @property
@@ -133,6 +146,9 @@ class InteractiveLine2D(Line2D):
     @predictions_visible.setter
     def predictions_visible(self, value):
         self._predictions_linecollection.set_visible(value)
+        # Invalidate blitting background cache when visibility changes
+        if self._parent_widget is not None:
+            self._parent_widget.vertical_time_line_background = None
         self._canvas.draw_idle()
 
     @property
@@ -150,6 +166,9 @@ class InteractiveLine2D(Line2D):
             self.set_markersize(self._default_marker_size)
             self.set_markeredgewidth(1)
             self.set_markevery(list_of_values)
+        # Invalidate blitting background cache when span indices change
+        if self._parent_widget is not None:
+            self._parent_widget.vertical_time_line_background = None
         self._canvas.draw_idle()
 
     def set_data(self, *args, **kwargs):
@@ -300,6 +319,7 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         self._signal_class = 0
         # Initialize current_time_line
         self.vertical_time_line = None
+        self.vertical_time_line_background = None
 
         # Create horizontal Span Selector
         self.span_selector = SpanSelector(ax=self.axes,
@@ -401,15 +421,16 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                 line.predictions_visible = False
 
     def on_dims_slider_change(self) -> None:
-        # TODO: update vertical line over plot (consider multithreading for performance, check details here:
-        #  - https://napari.org/dev/guides/threading.html#multithreading-in-napari)
+        # Fast update of vertical line using blitting (only redraws the line, not the entire plot)
         if self.viewer.dims.ndim > 2:
             # Do not try to plot if no layers are present yet
             if len(self.layers) == 0:
                 return
-            self.draw()
+            # Only update the vertical time line without redrawing everything
+            self._update_time_line_fast()
 
     def _update_time_line(self):
+        """Update or create the vertical time line (used during full redraws)."""
         current_time_point = self.viewer.dims.current_step[0]
         if self.vertical_time_line is None:
             self.vertical_time_line = self.axes.axvline(
@@ -417,6 +438,35 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         else:
             self.vertical_time_line.set_xdata([current_time_point])
         self.axes.add_line(self.vertical_time_line)
+    
+    def _update_time_line_fast(self):
+        """Fast update of vertical time line using blitting (only redraws the line)."""
+        if self.vertical_time_line is None:
+            # If line doesn't exist yet, do a full draw to create it
+            self.draw()
+            return
+        
+        current_time_point = self.viewer.dims.current_step[0]
+        
+        # Capture background if not already done (must be done without the line visible)
+        if self.vertical_time_line_background is None:
+            # Temporarily hide the line to capture clean background
+            self.vertical_time_line.set_visible(False)
+            self.canvas.draw()
+            self.vertical_time_line_background = self.canvas.copy_from_bbox(self.axes.bbox)
+            self.vertical_time_line.set_visible(True)
+        
+        # Restore the background (everything except the line)
+        self.canvas.restore_region(self.vertical_time_line_background)
+        
+        # Update the line position
+        self.vertical_time_line.set_xdata([current_time_point])
+        
+        # Redraw only the line
+        self.axes.draw_artist(self.vertical_time_line)
+        
+        # Blit the updated region
+        self.canvas.blit(self.axes.bbox)
 
     def on_update_layers(self) -> None:
         """
@@ -856,7 +906,8 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
                         pickradius=2,
                         alpha=0.7,
                         axes=self.axes,
-                        canvas=self.figure.canvas)
+                        canvas=self.figure.canvas,
+                        parent_widget=self)
                     self._lines += [line]
                 # Add (or re-add) every line and scatter to axes (in case axes were cleared)
                 line.add_to_axes()
@@ -877,3 +928,5 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             if hasattr(self, 'vertical_time_line'):
                 self._update_time_line()
             self.canvas.draw()
+            # Invalidate the background cache after a full redraw
+            self.vertical_time_line_background = None
