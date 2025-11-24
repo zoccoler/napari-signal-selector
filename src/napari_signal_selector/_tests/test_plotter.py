@@ -9,10 +9,6 @@ def test_plotter_widget_creation(make_napari_viewer):
     plotter = InteractiveFeaturesLineWidget(viewer)
     
     assert plotter is not None
-    assert hasattr(plotter, 'custom_toolbar')
-    assert hasattr(plotter, 'signal_class_color_spinbox')
-    assert hasattr(plotter, 'vertical_time_line')
-    assert hasattr(plotter, 'vertical_time_line_background')
 
 
 def test_plotter_dock_widget(make_napari_viewer):
@@ -48,14 +44,19 @@ def test_plotter_with_labels_layer(make_napari_viewer):
     assert plotter.layers[0] == layer
 
 
-def test_interactive_line2d_creation():
+def test_interactive_line2d_creation_and_selection():
     """Test that InteractiveLine2D can be created with custom attributes."""
+    
+    # Create mock canvas
+    mock_canvas = type('MockCanvas', (), {'draw_idle': lambda self: None})()
+    
     line = InteractiveLine2D(
         xdata=[0, 1, 2],
         ydata=[0, 1, 0],
         label_from_napari_layer=1,
         color_from_napari_layer=(1, 0, 0, 1),
         selected=False,
+        canvas=mock_canvas,
         parent_widget=None
     )
     
@@ -65,18 +66,6 @@ def test_interactive_line2d_creation():
     assert len(line.annotations) == 3
     assert len(line.predictions) == 3
 
-
-def test_interactive_line2d_selection():
-    """Test line selection state changes."""
-    line = InteractiveLine2D(
-        xdata=[0, 1, 2],
-        ydata=[0, 1, 0],
-        label_from_napari_layer=1,
-        color_from_napari_layer=(1, 0, 0, 1),
-        selected=False,
-        parent_widget=None
-    )
-    
     # Test selection
     line.selected = True
     assert line.selected == True

@@ -27,9 +27,6 @@ def test_annotation_workflow(make_napari_viewer):
     plotter.y_axis_key = 'intensity'
     plotter.object_id_axis_key = 'label'
     
-    # Draw to create lines
-    plotter._draw()
-    
     # Simulate selecting a line
     if len(plotter._lines) > 0:
         line = plotter._lines[0]
@@ -42,6 +39,7 @@ def test_annotation_workflow(make_napari_viewer):
         
         # Check that annotation was added
         assert 'Annotations' in layer.features.columns
+        assert np.array_equal(layer.features['Annotations'].values, [2, 2, 0, 0])
         
 
 def test_span_selection(make_napari_viewer):
@@ -51,6 +49,7 @@ def test_span_selection(make_napari_viewer):
     
     # Create test data
     labels = np.ones((50, 50), dtype=int)
+    labels[0,0] = 0  # at least one pixel of background
     features = pd.DataFrame({
         'label': [1, 1, 1, 1],
         'time': [0, 1, 2, 3],
@@ -63,18 +62,19 @@ def test_span_selection(make_napari_viewer):
     plotter.x_axis_key = 'time'
     plotter.y_axis_key = 'value'
     plotter.object_id_axis_key = 'label'
-    plotter._draw()
     
     # Select a line and add span
     if len(plotter._lines) > 0:
         line = plotter._lines[0]
         line.selected = True
+        plotter._selected_lines.append(line)
         
         # Simulate span selection
         plotter._on_span(0.5, 2.5)
         
         # Check that span indices were set
         assert len(line.span_indices) > 0
+        assert line.span_indices == [1, 2]
 
 
 def test_clear_selections(make_napari_viewer):
@@ -83,10 +83,11 @@ def test_clear_selections(make_napari_viewer):
     plotter = InteractiveFeaturesLineWidget(viewer)
     
     labels = np.ones((50, 50), dtype=int)
+    labels[0,0] = 0  # at least one pixel of background
     features = pd.DataFrame({
-        'label': [1],
-        'x': [0],
-        'y': [5]
+        'label': [1, 1],
+        'x': [0, 1],
+        'y': [5, 10]
     })
     
     layer = viewer.add_labels(labels, features=features)
@@ -95,7 +96,6 @@ def test_clear_selections(make_napari_viewer):
     plotter.x_axis_key = 'x'
     plotter.y_axis_key = 'y'
     plotter.object_id_axis_key = 'label'
-    plotter._draw()
     
     # Add line to selected
     if len(plotter._lines) > 0:
@@ -117,6 +117,7 @@ def test_annotations_visibility(make_napari_viewer):
     plotter = InteractiveFeaturesLineWidget(viewer)
     
     labels = np.ones((50, 50), dtype=int)
+    labels[0,0] = 0  # at least one pixel of background
     features = pd.DataFrame({
         'label': [1, 1],
         'x': [0, 1],
@@ -129,7 +130,6 @@ def test_annotations_visibility(make_napari_viewer):
     plotter.x_axis_key = 'x'
     plotter.y_axis_key = 'y'
     plotter.object_id_axis_key = 'label'
-    plotter._draw()
     
     # Test visibility toggle
     plotter._show_annotations(True)
@@ -150,6 +150,7 @@ def test_predictions_visibility(make_napari_viewer):
     plotter = InteractiveFeaturesLineWidget(viewer)
     
     labels = np.ones((50, 50), dtype=int)
+    labels[0,0] = 0  # at least one pixel of background
     features = pd.DataFrame({
         'label': [1, 1],
         'x': [0, 1],
@@ -162,7 +163,6 @@ def test_predictions_visibility(make_napari_viewer):
     plotter.x_axis_key = 'x'
     plotter.y_axis_key = 'y'
     plotter.object_id_axis_key = 'label'
-    plotter._draw()
     
     # Test visibility toggle
     plotter._show_predictions(True)
@@ -182,6 +182,7 @@ def test_remove_annotation(make_napari_viewer):
     plotter = InteractiveFeaturesLineWidget(viewer)
     
     labels = np.ones((50, 50), dtype=int)
+    labels[0,0] = 0  # at least one pixel of background
     features = pd.DataFrame({
         'label': [1, 1],
         'x': [0, 1],
@@ -195,7 +196,6 @@ def test_remove_annotation(make_napari_viewer):
     plotter.x_axis_key = 'x'
     plotter.y_axis_key = 'y'
     plotter.object_id_axis_key = 'label'
-    plotter._draw()
     
     if len(plotter._lines) > 0:
         line = plotter._lines[0]
@@ -206,7 +206,5 @@ def test_remove_annotation(make_napari_viewer):
         plotter.remove_annotation()
         
         # Check annotations are reset to 0
-        annotations = layer.features.loc[
-            layer.features['label'] == 1, 'Annotations'
-        ].values
+        annotations = layer.features['Annotations'].values
         assert all(annotations == 0)

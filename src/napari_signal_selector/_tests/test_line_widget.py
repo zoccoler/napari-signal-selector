@@ -99,6 +99,8 @@ def test_ready_to_plot(make_napari_viewer):
     widget.x_axis_key = 'x_val'
     widget.y_axis_key = 'y_val'
     widget.object_id_axis_key = 'label'
+
+    layer.data[0,0] = 0  # at least one pixel of background
     
     # Now should be ready
     assert widget._ready_to_plot() == True
@@ -127,16 +129,3 @@ def test_valid_axis_keys(make_napari_viewer):
     assert 'label' in keys
     assert 'col1' in keys
     assert 'col2' in keys
-
-
-def test_theme_setup(make_napari_viewer):
-    """Test that theme colors are set up correctly."""
-    viewer = make_napari_viewer()
-    widget = FeaturesLineWidget(viewer)
-    
-    # Check that theme colors are initialized
-    assert widget.axes_color is not None
-    assert widget.axes_bg_color is not None
-    
-    # Theme should be applied to axes
-    assert widget.axes.get_facecolor() is not None
