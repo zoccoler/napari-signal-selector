@@ -102,9 +102,7 @@ Also, with the selection tool enbaled, by holding 'SHIFT' and left-clicking, you
 
 ### Exporting Annotations
 
-The table with annotations can be displayed in napari using the 'Show table' widget from [napari-skimage-regionprops plugin](https://github.com/haesleinhuepf/napari-skimage-regionprops#napari-skimage-regionprops-nsr), which is available under `Tools > Measurements > Show Table (nsr)`. This plugin may require a specific napari version, so check its documentation for more details.
-
-![](https://github.com/zoccoler/napari-signal-selector/raw/main/images/table_view.gif)
+The table with annotations can be displayed in napari using the napati builtin FeaturesTableWidget via `Layers > Visualize > Features table widget`. 
 
 By the way, with `'show selected'` checked, you can click on a label row in the table and see the corresponding label in the image **...and** in the plotter!
 
@@ -127,11 +125,11 @@ We recommend using `mamba-forge` whenever possible. Click [here](https://github.
 
 Create a conda environment :
 
-    mamba create -n napari-ss-env napari pyqt python=3.9
+    mamba create -n nss-env napari pyqt python=3.11
     
 Activate the environment :
 
-    mamba activate napari-ss-env
+    mamba activate nss-env
 
 Install `napari-signal-selector` via [pip] :
 

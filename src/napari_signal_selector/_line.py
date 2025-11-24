@@ -434,6 +434,8 @@ class FeaturesLineWidget(LineBaseWidget):
         the two columns to be plotted have been selected, and object
         identifier (usually 'labels') in the table.
         """
+        if len(self.layers) == 0:
+            return False
         if not hasattr(self.layers[0], "features"):
             return False
 
