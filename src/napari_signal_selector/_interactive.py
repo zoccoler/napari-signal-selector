@@ -49,10 +49,10 @@ class InteractiveLine2D(Line2D):
         self._selected = selected
         self._annotations = annotations
         if self._annotations is None:
-            self._annotations = np.zeros(self.get_xdata().shape).tolist()
+            self._annotations = np.zeros(len(self.get_xdata())).tolist()
         self._predictions = predictions
         if self._predictions is None:
-            self._predictions = np.zeros(self.get_xdata().shape).tolist()
+            self._predictions = np.zeros(len(self.get_xdata())).tolist()
         self._span_indices = span_indices
         if self._span_indices is None:
             self._span_indices = []
@@ -209,8 +209,6 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
     input_layer_types = (
         napari.layers.Labels,
     )
-    _selected_lines = []
-    _lines = []
 
     def __init__(
         self,
@@ -220,6 +218,10 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         super().__init__(napari_viewer, parent=parent)
         # Set object name
         self.setObjectName('InteractiveFeaturesLineWidget')
+        
+        # Initialize instance attributes (not shared between instances)
+        self._selected_lines = []
+        self._lines = []
 
         ### ColorSpinBox ###
         self.signal_class_color_spinbox = QtColorSpinBox()
@@ -431,6 +433,8 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
 
     def _update_time_line(self):
         """Update or create the vertical time line (used during full redraws)."""
+        if self.viewer.dims.ndim <= 2:
+            return
         current_time_point = self.viewer.dims.current_step[0]
         if self.vertical_time_line is None:
             self.vertical_time_line = self.axes.axvline(
@@ -445,7 +449,8 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
             # If line doesn't exist yet, do a full draw to create it
             self.draw()
             return
-        
+        if self.viewer.dims.ndim <= 2:
+            return
         current_time_point = self.viewer.dims.current_step[0]
         
         # Capture background if not already done (must be done without the line visible)
