@@ -33,7 +33,6 @@ def test_annotation_workflow(make_napari_viewer):
     # Simulate selecting a line
     if len(plotter._lines) > 0:
         line = plotter._lines[0]
-        line._canvas = type('MockCanvas', (), {'draw_idle': lambda: None})()
         line.selected = True
         plotter._selected_lines.append(line)
         
@@ -69,7 +68,6 @@ def test_span_selection(make_napari_viewer):
     # Select a line and add span
     if len(plotter._lines) > 0:
         line = plotter._lines[0]
-        line._canvas = type('MockCanvas', (), {'draw_idle': lambda: None})()
         line.selected = True
         
         # Simulate span selection
@@ -102,7 +100,6 @@ def test_clear_selections(make_napari_viewer):
     # Add line to selected
     if len(plotter._lines) > 0:
         line = plotter._lines[0]
-        line._canvas = type('MockCanvas', (), {'draw_idle': lambda: None})()
         line.selected = True
         plotter._selected_lines.append(line)
         
@@ -202,7 +199,6 @@ def test_remove_annotation(make_napari_viewer):
     
     if len(plotter._lines) > 0:
         line = plotter._lines[0]
-        line._canvas = type('MockCanvas', (), {'draw_idle': lambda: None})()
         line.selected = True
         plotter._selected_lines.append(line)
         

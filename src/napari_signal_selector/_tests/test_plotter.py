@@ -78,7 +78,6 @@ def test_interactive_line2d_selection():
     )
     
     # Test selection
-    line._canvas = type('MockCanvas', (), {'draw_idle': lambda: None})()
     line.selected = True
     assert line.selected == True
     assert line.get_linestyle() == '--'
