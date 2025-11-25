@@ -215,13 +215,12 @@ class InteractiveFeaturesLineWidget(FeaturesLineWidget):
         napari_viewer: napari.viewer.Viewer,
         parent: Optional[QWidget] = None,
     ):
+        self._selected_lines = []
+        self._lines = []
+        
         super().__init__(napari_viewer, parent=parent)
         # Set object name
         self.setObjectName('InteractiveFeaturesLineWidget')
-        
-        # Initialize instance attributes (not shared between instances)
-        self._selected_lines = []
-        self._lines = []
 
         ### ColorSpinBox ###
         self.signal_class_color_spinbox = QtColorSpinBox()
