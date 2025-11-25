@@ -9,7 +9,7 @@ contributions:
       python_name: napari_signal_selector._sample_data:load_blinking_polygons_data
       title: Load sample data from Napari Signal Selector
     - id: napari-signal-selector.make_inter_features_line_widget
-      python_name: napari_signal_selector.interactive:InteractiveFeaturesLineWidget
+      python_name: napari_signal_selector._interactive:InteractiveFeaturesLineWidget
       title: Signal Selector
 
   sample_data:
