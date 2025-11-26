@@ -4,8 +4,9 @@ except ImportError:
     __version__ = "unknown"
 
 
-from ._sample_data import load_flashing_polygons_data, load_blinking_polygons_data
 from ._interactive import InteractiveFeaturesLineWidget
+from ._sample_data import (load_blinking_polygons_data,
+                           load_flashing_polygons_data)
 
 __all__ = (
     "InteractiveFeaturesLineWidget",

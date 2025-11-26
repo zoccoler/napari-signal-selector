@@ -1,18 +1,17 @@
-from typing import Any, Dict, List, Optional, Tuple, Union
-from cycler import cycler
 import os
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
+
 import napari
 import numpy as np
 import numpy.typing as npt
-from pathlib import Path
-from qtpy.QtWidgets import QComboBox, QLabel, QVBoxLayout, QWidget
-from qtpy.QtGui import QIcon
-from matplotlib.backends.backend_qtagg import (
-    FigureCanvasQTAgg,
-    NavigationToolbar2QT,
-)
-from napari.utils.events import Event
+from cycler import cycler
+from matplotlib.backends.backend_qtagg import (FigureCanvasQTAgg,
+                                               NavigationToolbar2QT)
 from matplotlib.figure import Figure
+from napari.utils.events import Event
+from qtpy.QtGui import QIcon
+from qtpy.QtWidgets import QComboBox, QLabel, QVBoxLayout, QWidget
 
 ICON_ROOT = Path(__file__).parent / "icons"
 __all__ = ["LineBaseWidget", "FeaturesLineWidget"]
@@ -21,8 +20,8 @@ __all__ = ["LineBaseWidget", "FeaturesLineWidget"]
 class NapariNavigationToolbar(NavigationToolbar2QT):
     """Custom Toolbar style for Napari."""
 
-    def __init__(self, *args, **kwargs) -> None:  
-        super().__init__(*args, **kwargs)  
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         # self.setIconSize(
         #     from_napari_css_get_size_of(
         #         "QtViewerPushButton", fallback=(28, 28)
@@ -31,7 +30,7 @@ class NapariNavigationToolbar(NavigationToolbar2QT):
 
     def _update_buttons_checked(self) -> None:
         """Update toggle tool icons when selected/unselected."""
-        super()._update_buttons_checked()  
+        super()._update_buttons_checked()
         icon_dir = self.parentWidget()._get_path_to_icon().__str__()
 
         # changes pan/zoom icons depending on state (checked or not)
@@ -54,12 +53,17 @@ class NapariNavigationToolbar(NavigationToolbar2QT):
                     QIcon(os.path.join(icon_dir, "Zoom.png"))
                 )
 
+
 class LineBaseWidget(QWidget):
     """
     Base class for widgets that do line plots of two datasets against each other.
     """
-    def __init__(self, napari_viewer: napari.viewer.Viewer, parent: Optional[QWidget] = None,
-                 ):
+
+    def __init__(
+        self,
+        napari_viewer: napari.viewer.Viewer,
+        parent: Optional[QWidget] = None,
+    ):
         super().__init__(parent=parent)
         self.viewer = napari_viewer
         self.canvas = FigureCanvasQTAgg()
@@ -84,13 +88,13 @@ class LineBaseWidget(QWidget):
             theme = self.viewer.theme
         else:
             theme = theme_event.value
-        if theme == 'dark':
+        if theme == "dark":
             self.axes_color = "white"
             self.axes_bg_color = "#262930"
-        elif theme == 'light':
+        elif theme == "light":
             self.axes_color = "black"
             self.axes_bg_color = "#efebe9"
-        
+
         # changing color of axes background to napari main window color
         self.figure.patch.set_facecolor(self.axes_bg_color)
         # changing color of plot background to napari main window color
@@ -105,13 +109,17 @@ class LineBaseWidget(QWidget):
         self.axes.yaxis.label.set_color(self.axes_color)
 
         # changing colors of axes ticks
-        self.axes.tick_params(axis="x", colors=self.axes_color, labelcolor=self.axes_color)
-        self.axes.tick_params(axis="y", colors=self.axes_color, labelcolor=self.axes_color)
+        self.axes.tick_params(
+            axis="x", colors=self.axes_color, labelcolor=self.axes_color
+        )
+        self.axes.tick_params(
+            axis="y", colors=self.axes_color, labelcolor=self.axes_color
+        )
 
         # changing colors of axes labels
         self.axes.xaxis.label.set_color(self.axes_color)
         self.axes.yaxis.label.set_color(self.axes_color)
-       
+
         # replace toolbar icons with dark theme icons
         self._replace_toolbar_icons()
         self.canvas.draw()
@@ -201,7 +209,7 @@ class LineBaseWidget(QWidget):
         self.clear()
         if self._valid_layer_selection:
             self.draw()
-        self.canvas.draw() 
+        self.canvas.draw()
 
     def clear(self) -> None:
         """
@@ -233,7 +241,7 @@ class LineBaseWidget(QWidget):
             The label to display on the y axis
         """
         raise NotImplementedError
-    
+
     def setCustomToolbar(self, toolbar):
         layout = self.layout()
         # Remove the current toolbar from the layout
@@ -249,8 +257,10 @@ class LineWidget(LineBaseWidget):
     Plot pixel values of an Image layer underneath a line from a Shapes layer.
     """
 
-    input_layer_types = (napari.layers.Image,
-                         napari.layers.Shapes,)
+    input_layer_types = (
+        napari.layers.Image,
+        napari.layers.Shapes,
+    )
 
     def _get_data(self) -> Tuple[npt.NDArray[Any], npt.NDArray[Any], str, str]:
         """
@@ -268,15 +278,25 @@ class LineWidget(LineBaseWidget):
         line_data = self._get_line_data()
         if line_data is None:
             return [], [], "", ""
-        image_layers = [layer for layer in self.layers if isinstance(layer, napari.layers.Image)]
+        image_layers = [
+            layer
+            for layer in self.layers
+            if isinstance(layer, napari.layers.Image)
+        ]
         if len(image_layers) == 0:
             return [], [], "", ""
         line_pixel_coords = self._get_line_pixel_coordinates(
-            line_data[0], line_data[1], weight=1, shape=image_layers[0].data.shape)
+            line_data[0],
+            line_data[1],
+            weight=1,
+            shape=image_layers[0].data.shape,
+        )
 
         x = self._get_pixel_distances(line_pixel_coords, line_data[0])
-        y = image_layers[0].data[self.current_z][line_pixel_coords[0], line_pixel_coords[1]]
-        x_axis_name = 'pixel distance'
+        y = image_layers[0].data[self.current_z][
+            line_pixel_coords[0], line_pixel_coords[1]
+        ]
+        x_axis_name = "pixel distance"
         y_axis_name = image_layers[0].name
 
         return x, y, x_axis_name, y_axis_name
@@ -289,8 +309,8 @@ class LineWidget(LineBaseWidget):
             # There must be a Shapes layer
             if isinstance(layer, napari.layers.Shapes):
                 # There must be a line
-                if 'line' in layer.shape_type:
-                    line_data = layer.data[layer.shape_type.index('line')]
+                if "line" in layer.shape_type:
+                    line_data = layer.data[layer.shape_type.index("line")]
                     return line_data
         return None
 
@@ -300,18 +320,30 @@ class LineWidget(LineBaseWidget):
         """
         import numpy as np
         from skimage.draw import bezier_curve
+
         middle = (start + end) / 2
         start = np.round(start).astype(int)
         middle = np.round(middle).astype(int)
         end = np.round(end).astype(int)
-        rr, cc = bezier_curve(start[0], start[1], middle[0], middle[1], end[0], end[1], weight=weight, shape=shape)
+        rr, cc = bezier_curve(
+            start[0],
+            start[1],
+            middle[0],
+            middle[1],
+            end[0],
+            end[1],
+            weight=weight,
+            shape=shape,
+        )
         return np.array([rr, cc])
 
     def _get_pixel_distances(self, line_coordinates, start):
         """
         Get the pixel distances from the start of the line.
         """
-        distances = np.linalg.norm(line_coordinates - start[:, np.newaxis], axis=0)
+        distances = np.linalg.norm(
+            line_coordinates - start[:, np.newaxis], axis=0
+        )
         return distances
 
 
@@ -321,9 +353,7 @@ class FeaturesLineWidget(LineBaseWidget):
     """
 
     # Currently working with Labels layer
-    input_layer_types = (
-        napari.layers.Labels,
-    )
+    input_layer_types = (napari.layers.Labels,)
 
     def __init__(
         self,
@@ -413,14 +443,19 @@ class FeaturesLineWidget(LineBaseWidget):
 
     def _check_valid_object_id_data_and_set_color_cycle(self):
         # If no features, return False
-        if self.layers[0].features is None or len(self.layers[0].features) == 0:
+        if (
+            self.layers[0].features is None
+            or len(self.layers[0].features) == 0
+        ):
             return False
         # If no object_id_axis_key, return False
         if self.object_id_axis_key is None:
             return False
         feature_table = self.layers[0].features
         # Return True if object_ids from table match labels from layer, otherwise False
-        object_ids_from_table = np.unique(feature_table[self.object_id_axis_key].values).astype(int)
+        object_ids_from_table = np.unique(
+            feature_table[self.object_id_axis_key].values
+        ).astype(int)
         labels_from_layer = np.unique(self.layers[0].data)[1:]  # exclude zero
         if np.array_equal(object_ids_from_table, labels_from_layer):
             # Set color cycle
@@ -441,7 +476,9 @@ class FeaturesLineWidget(LineBaseWidget):
 
         feature_table = self.layers[0].features
         valid_keys = self._get_valid_axis_keys()
-        valid_object_id_data = self._check_valid_object_id_data_and_set_color_cycle()
+        valid_object_id_data = (
+            self._check_valid_object_id_data_and_set_color_cycle()
+        )
 
         return (
             feature_table is not None
@@ -465,7 +502,7 @@ class FeaturesLineWidget(LineBaseWidget):
         Set the color cycle for the plot from the colors in the Labels layer.
         """
         colors = [self.layers[0].get_color(label) for label in labels]
-        napari_labels_cycler = (cycler(color=colors))
+        napari_labels_cycler = cycler(color=colors)
         self.axes.set_prop_cycle(napari_labels_cycler)
 
     def _get_data(self) -> Tuple[npt.NDArray[Any], npt.NDArray[Any], str, str]:
@@ -488,11 +525,17 @@ class FeaturesLineWidget(LineBaseWidget):
         feature_table = self.layers[0].features
 
         # Sort features by object_id and x_axis_key
-        feature_table = feature_table.sort_values(by=[self.object_id_axis_key, self.x_axis_key])
+        feature_table = feature_table.sort_values(
+            by=[self.object_id_axis_key, self.x_axis_key]
+        )
         # Get data for each object_id (usually label)
         grouped = feature_table.groupby(self.object_id_axis_key)
-        x = np.array([sub_df[self.x_axis_key].values for label, sub_df in grouped]).T.squeeze()
-        y = np.array([sub_df[self.y_axis_key].values for label, sub_df in grouped]).T.squeeze()
+        x = np.array(
+            [sub_df[self.x_axis_key].values for label, sub_df in grouped]
+        ).T.squeeze()
+        y = np.array(
+            [sub_df[self.y_axis_key].values for label, sub_df in grouped]
+        ).T.squeeze()
 
         x_axis_name = str(self.x_axis_key)
         y_axis_name = str(self.y_axis_key)
