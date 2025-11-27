@@ -120,12 +120,12 @@ df.to_csv('annotations.csv')
 
 You can install `napari-signal-selector` via [pip]. Follow these steps from a terminal.
 
-We recommend using `mamba-forge` whenever possible. Click [here](https://github.com/conda-forge/miniforge#mambaforge) to choose the right download option for your OS.
-**If you do not use `mamba-forge`, replace the `mamba` term whenever you see it below with `conda`.**
+We recommend using `Miniforge` whenever possible. Click [here]([https://github.com/conda-forge/miniforge#mambaforge](https://conda-forge.org/download/)) to choose the right download option for your OS.
+**If you do not use `Miniforge`, you might need to replace the `mamba` term whenever you see it below with `conda`.**
 
 Create a conda environment :
 
-    mamba create -n nss-env napari pyqt python=3.11
+    mamba create -n nss-env napari pyqt python=3.12
     
 Activate the environment :
 
